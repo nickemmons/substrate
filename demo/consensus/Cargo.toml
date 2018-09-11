@@ -16,6 +16,7 @@ demo-api = { path = "../api" }
 demo-primitives = { path = "../primitives" }
 demo-runtime = { path = "../runtime" }
 demo-transaction-pool = { path = "../transaction-pool" }
+substrate-consensus-common = { path = "../../substrate/consensus/common" }
 substrate-consensus-rhd = { path = "../../substrate/consensus/rhd" }
 substrate-codec = { path = "../../substrate/codec" }
 substrate-primitives = { path = "../../substrate/primitives" }

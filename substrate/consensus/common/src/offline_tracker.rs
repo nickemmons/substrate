@@ -1,22 +1,20 @@
 // Copyright 2018 Parity Technologies (UK) Ltd.
-// This file is part of Substrate Demo.
+// This file is part of Substrate Consensus Common.
 
 // Substrate Demo is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Substrate Demo is distributed in the hope that it will be useful,
+// Substrate Consensus Common is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Substrate Demo.  If not, see <http://www.gnu.org/licenses/>.
+// along with Substrate Consensus Common.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tracks offline validators.
-
-use demo_primitives::AccountId;
 
 use std::collections::HashMap;
 use std::time::{Instant, Duration};
@@ -55,18 +53,19 @@ impl Observed {
 }
 
 /// Tracks offline validators and can issue a report for those offline.
-pub struct OfflineTracker {
-	observed: HashMap<AccountId, Observed>,
+pub struct OfflineTracker<T> {
+	observed: HashMap<T, Observed>,
 }
 
-impl OfflineTracker {
+impl<T> OfflineTracker<T> 
+where T: Eq + ::std::hash::Hash + Clone {
 	/// Create a new tracker.
 	pub fn new() -> Self {
-		OfflineTracker { observed: HashMap::new() }
+		OfflineTracker { observed: Default::default() }
 	}
 
 	/// Note new consensus is starting with the given set of validators.
-	pub fn note_new_block(&mut self, validators: &[AccountId]) {
+	pub fn note_new_block(&mut self, validators: &[T]) {
 		use std::collections::HashSet;
 
 		let set: HashSet<_> = validators.iter().cloned().collect();
@@ -74,14 +73,14 @@ impl OfflineTracker {
 	}
 
 	/// Note that a round has ended.
-	pub fn note_round_end(&mut self, validator: AccountId, was_online: bool) {
+	pub fn note_round_end(&mut self, validator: T, was_online: bool) {
 		self.observed.entry(validator)
 			.or_insert_with(Observed::new)
 			.note_round_end(was_online);
 	}
 
 	/// Generate a vector of indices for offline account IDs.
-	pub fn reports(&self, validators: &[AccountId]) -> Vec<u32> {
+	pub fn reports(&self, validators: &[T]) -> Vec<u32> {
 		validators.iter()
 			.enumerate()
 			.filter_map(|(i, v)| if self.is_online(v) {
@@ -93,7 +92,7 @@ impl OfflineTracker {
 	}
 
 	/// Whether reports on a validator set are consistent with our view of things.
-	pub fn check_consistency(&self, validators: &[AccountId], reports: &[u32]) -> bool {
+	pub fn check_consistency(&self, validators: &[T], reports: &[u32]) -> bool {
 		reports.iter().cloned().all(|r| {
 			let v = match validators.get(r as usize) {
 				Some(v) => v,
@@ -106,7 +105,7 @@ impl OfflineTracker {
 		})
 	}
 
-	fn is_online(&self, v: &AccountId) -> bool {
+	fn is_online(&self, v: &T) -> bool {
 		self.observed.get(v).map(Observed::is_active).unwrap_or(true)
 	}
 }
@@ -115,9 +114,11 @@ impl OfflineTracker {
 mod tests {
 	use super::*;
 
+	type AccountId = ::primitives::H256;
+
 	#[test]
 	fn validator_offline() {
-		let mut tracker = OfflineTracker::new();
+		let mut tracker : OfflineTracker<AccountId> = OfflineTracker::new();
 		let v = [0; 32].into();
 		let v2 = [1; 32].into();
 		let v3 = [2; 32].into();

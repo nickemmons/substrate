@@ -24,6 +24,7 @@ extern crate demo_runtime;
 extern crate demo_primitives;
 
 extern crate substrate_codec as codec;
+extern crate substrate_consensus_common as consensus;
 extern crate substrate_consensus_rhd as bft;
 extern crate substrate_primitives as primitives;
 extern crate substrate_runtime_support as runtime_support;
@@ -50,6 +51,7 @@ use std::time::{self, Duration, Instant};
 use codec::{Decode, Encode};
 use demo_api::Api;
 use demo_primitives::{AccountId, Hash, Block, BlockId, BlockNumber, Header, Timestamp, SessionKey};
+use consensus::offline_tracker::OfflineTracker;
 use primitives::AuthorityId;
 use transaction_pool::TransactionPool;
 use tokio::runtime::TaskExecutor;
@@ -60,16 +62,14 @@ use futures::future;
 use parking_lot::RwLock;
 
 pub use self::error::{ErrorKind, Error};
-pub use self::offline_tracker::OfflineTracker;
 pub use service::Service;
 
 mod evaluation;
 mod error;
-mod offline_tracker;
 mod service;
 
 /// Shared offline validator tracker.
-pub type SharedOfflineTracker = Arc<RwLock<OfflineTracker>>;
+pub type SharedOfflineTracker = Arc<RwLock<OfflineTracker<AccountId>>>;
 
 // block size limit.
 const MAX_TRANSACTIONS_SIZE: usize = 4 * 1024 * 1024;
