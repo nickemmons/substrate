@@ -225,6 +225,17 @@ impl<T: Decode> Decode for Box<T> {
 	}
 }
 
+impl<T> Encode for ::std::marker::PhantomData<T> {
+	fn encode_to<W: Output>(&self, _dest: &mut W) {
+	}
+}
+
+impl<T> Decode for ::std::marker::PhantomData<T> {
+	fn decode<I: Input>(_input: &mut I) -> Option<Self> {
+		Some(::std::marker::PhantomData)
+	}
+}
+
 impl Encode for [u8] {
 	fn encode_to<W: Output>(&self, dest: &mut W) {
 		let len = self.len();
