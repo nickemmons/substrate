@@ -17,11 +17,12 @@
 //! Message formats for the BFT consensus layer.
 
 use rstd::prelude::*;
-use codec::{Decode, Encode, Input, Output};
+use codec::{Codec, Decode, Encode, Input, Output};
 use substrate_primitives::{AuthorityId, Signature};
+use primitives::traits;
 
 /// Type alias for extracting message type from block.
-pub type ActionFor<B> = Action<B, <B as ::traits::Block>::Hash>;
+pub type ActionFor<B> = Action<B, <B as traits::Block>::Hash>;
 
 /// Actions which can be taken during the BFT process.
 #[derive(Clone, PartialEq, Eq, Encode, Decode)]
@@ -46,7 +47,7 @@ pub enum Action<Block, H> {
 }
 
 /// Type alias for extracting message type from block.
-pub type MessageFor<B> = Message<B, <B as ::traits::Block>::Hash>;
+pub type MessageFor<B> = Message<B, <B as traits::Block>::Hash>;
 
 /// Messages exchanged between participants in the BFT consensus.
 #[derive(Clone, PartialEq, Eq, Encode, Decode)]
@@ -69,6 +70,10 @@ pub struct Justification<H> {
 	/// The signatures and signers of the hash.
 	pub signatures: Vec<(AuthorityId, Signature)>
 }
+
+impl<H: 'static> traits::Justification for Justification<H>
+where
+	H : Codec + Clone + Eq + Sync + Send {}
 
 // single-byte code to represent misbehavior kind.
 #[repr(i8)]

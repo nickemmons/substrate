@@ -39,7 +39,7 @@ extern crate substrate_primitives;
 extern crate substrate_runtime_io as runtime_io;
 extern crate substrate_runtime_primitives as primitives;
 extern crate substrate_runtime_balances as balances;
-extern crate substrate_runtime_consensus as consensus;
+extern crate substrate_runtime_consensus_rhd as consensus;
 extern crate substrate_runtime_sandbox as sandbox;
 extern crate substrate_runtime_session as session;
 extern crate substrate_runtime_system as system;

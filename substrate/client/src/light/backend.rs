@@ -22,7 +22,7 @@ use futures::{Future, IntoFuture};
 use parking_lot::RwLock;
 
 use primitives::AuthorityId;
-use runtime_primitives::{bft::Justification, generic::BlockId};
+use runtime_primitives::generic::BlockId;
 use runtime_primitives::traits::{Block as BlockT, NumberFor};
 use state_machine::{
 	Backend as StateBackend,
@@ -147,7 +147,7 @@ where
 		&mut self,
 		header: Block::Header,
 		_body: Option<Vec<Block::Extrinsic>>,
-		_justification: Option<Justification<Block::Hash>>,
+		_justification: Option<Block::Justification>,
 		is_new_best: bool
 	) -> ClientResult<()> {
 		self.is_new_best = is_new_best;

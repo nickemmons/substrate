@@ -41,19 +41,23 @@ extern crate substrate_codec as codec;
 extern crate substrate_runtime_system as system;
 extern crate substrate_primitives;
 
+
+pub mod messages;
+
 use rstd::prelude::*;
 use runtime_support::{storage, Parameter};
 use runtime_support::dispatch::Result;
 use runtime_support::storage::StorageValue;
 use runtime_support::storage::unhashed::StorageVec;
 use primitives::traits::{MaybeSerializeDebug, OnFinalise, Member, DigestItem};
-use primitives::bft::MisbehaviorReport;
+use messages::MisbehaviorReport;
 use system::{ensure_signed, ensure_inherent, ensure_root};
 
 #[cfg(any(feature = "std", test))]
 use substrate_primitives::KeccakHasher;
 #[cfg(any(feature = "std", test))]
 use std::collections::HashMap;
+
 
 pub const AUTHORITY_AT: &'static [u8] = b":auth:";
 pub const AUTHORITY_COUNT: &'static [u8] = b":auth:len";

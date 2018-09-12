@@ -373,6 +373,11 @@ pub trait Header: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stat
 	}
 }
 
+/// Justification for a given Block
+pub trait Justification: Clone + Send + Sync + Codec + Eq + 'static {
+
+}
+
 /// Something which fulfills the abstract idea of a Substrate block. It has types for an
 /// `Extrinsic` piece of information as well as a `Header`.
 ///
@@ -381,6 +386,7 @@ pub trait Block: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stati
 	type Extrinsic: Member + Codec;
 	type Header: Header<Hash=Self::Hash>;
 	type Hash: Member + ::rstd::hash::Hash + Copy + MaybeDisplay + Default + SimpleBitOps + Codec + AsRef<[u8]>;
+	type Justification: Justification;
 
 	fn header(&self) -> &Self::Header;
 	fn extrinsics(&self) -> &[Self::Extrinsic];
@@ -390,6 +396,7 @@ pub trait Block: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stati
 		<<Self::Header as Header>::Hashing as Hash>::hash_of(self.header())
 	}
 }
+
 
 /// Extract the hashing type for a block.
 pub type HashFor<B> = <<B as Block>::Header as Header>::Hashing;

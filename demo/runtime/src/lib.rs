@@ -43,7 +43,7 @@ extern crate substrate_codec_derive;
 #[cfg_attr(not(feature = "std"), macro_use)]
 extern crate substrate_runtime_std as rstd;
 extern crate substrate_runtime_balances as balances;
-extern crate substrate_runtime_consensus as consensus;
+extern crate substrate_runtime_consensus_rhd as consensus;
 extern crate substrate_runtime_contract as contract;
 extern crate substrate_runtime_council as council;
 extern crate substrate_runtime_democracy as democracy;
@@ -335,7 +335,7 @@ pub type Address = balances::Address<Runtime>;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256, Log>;
 /// Block type as expected by this runtime.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+pub type Block = generic::Block<Header, UncheckedExtrinsic, consensus::messages::Justification<BlakeTwo256>>;
 /// BlockId type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 /// Unchecked extrinsic type as expected by this runtime.

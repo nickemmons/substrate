@@ -21,8 +21,7 @@ use std::fmt;
 
 use rstd::prelude::*;
 use codec::Codec;
-use traits::{self, Member, Block as BlockT, Header as HeaderT};
-use bft::Justification;
+use traits::{self, Member, Block as BlockT, Header as HeaderT, Justification as JustificationT};
 
 /// Something to identify a block.
 #[derive(PartialEq, Eq, Clone)]
@@ -62,21 +61,25 @@ impl<Block: BlockT> fmt::Display for BlockId<Block> {
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "std", serde(deny_unknown_fields))]
-pub struct Block<Header, Extrinsic> {
+pub struct Block<Header, Extrinsic, Justification> {
 	/// The block header.
 	pub header: Header,
 	/// The accompanying extrinsics.
 	pub extrinsics: Vec<Extrinsic>,
+	// making the compiler happy
+	_just: ::std::marker::PhantomData<Justification>,
 }
 
-impl<Header, Extrinsic> traits::Block for Block<Header, Extrinsic>
+impl<Header, Extrinsic, Justification> traits::Block for Block<Header, Extrinsic, Justification>
 where
 	Header: HeaderT,
 	Extrinsic: Member + Codec,
+	Justification: JustificationT + fmt::Debug,
 {
 	type Extrinsic = Extrinsic;
 	type Header = Header;
 	type Hash = <Self::Header as traits::Header>::Hash;
+	type Justification = Justification;
 
 	fn header(&self) -> &Self::Header {
 		&self.header
@@ -88,7 +91,7 @@ where
 		(self.header, self.extrinsics)
 	}
 	fn new(header: Self::Header, extrinsics: Vec<Self::Extrinsic>) -> Self {
-		Block { header, extrinsics }
+		Block { header, extrinsics, _just: Default::default() }
 	}
 }
 
@@ -97,9 +100,9 @@ where
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "std", serde(deny_unknown_fields))]
-pub struct SignedBlock<Header, Extrinsic, Hash> {
+pub struct SignedBlock<Header, Extrinsic, Justification> {
 	/// Full block.
-	pub block: Block<Header, Extrinsic>,
+	pub block: Block<Header, Extrinsic, Justification>,
 	/// Block header justification.
-	pub justification: Justification<Hash>,
+	pub justification: Justification,
 }

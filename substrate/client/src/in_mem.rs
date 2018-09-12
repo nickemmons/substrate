@@ -25,7 +25,6 @@ use light;
 use primitives::AuthorityId;
 use runtime_primitives::generic::BlockId;
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, Zero, NumberFor, As};
-use runtime_primitives::bft::Justification;
 use blockchain::{self, BlockStatus};
 use state_machine::backend::{Backend as StateBackend, InMemory};
 use patricia_trie::NodeCodec;
@@ -39,12 +38,12 @@ struct PendingBlock<B: BlockT> {
 
 #[derive(PartialEq, Eq, Clone)]
 enum StoredBlock<B: BlockT> {
-	Header(B::Header, Option<Justification<B::Hash>>),
-	Full(B, Option<Justification<B::Hash>>),
+	Header(B::Header, Option<B::Justification>),
+	Full(B, Option<B::Justification>),
 }
 
 impl<B: BlockT> StoredBlock<B> {
-	fn new(header: B::Header, body: Option<Vec<B::Extrinsic>>, just: Option<Justification<B::Hash>>) -> Self {
+	fn new(header: B::Header, body: Option<Vec<B::Extrinsic>>, just: Option<B::Justification>) -> Self {
 		match body {
 			Some(body) => StoredBlock::Full(B::new(header, body), just),
 			None => StoredBlock::Header(header, just),
@@ -58,7 +57,7 @@ impl<B: BlockT> StoredBlock<B> {
 		}
 	}
 
-	fn justification(&self) -> Option<&Justification<B::Hash>> {
+	fn justification(&self) -> Option<&B::Justification> {
 		match *self {
 			StoredBlock::Header(_, ref j) | StoredBlock::Full(_, ref j) => j.as_ref()
 		}
@@ -71,7 +70,7 @@ impl<B: BlockT> StoredBlock<B> {
 		}
 	}
 
-	fn into_inner(self) -> (B::Header, Option<Vec<B::Extrinsic>>, Option<Justification<B::Hash>>) {
+	fn into_inner(self) -> (B::Header, Option<Vec<B::Extrinsic>>, Option<B::Justification>) {
 		match self {
 			StoredBlock::Header(header, just) => (header, None, just),
 			StoredBlock::Full(block, just) => {
@@ -150,7 +149,7 @@ impl<Block: BlockT> Blockchain<Block> {
 		&self,
 		hash: Block::Hash,
 		header: <Block as BlockT>::Header,
-		justification: Option<Justification<Block::Hash>>,
+		justification: Option<Block::Justification>,
 		body: Option<Vec<<Block as BlockT>::Extrinsic>>,
 		is_new_best: bool
 	) {
@@ -229,7 +228,7 @@ impl<Block: BlockT> blockchain::Backend<Block> for Blockchain<Block> {
 		}))
 	}
 
-	fn justification(&self, id: BlockId<Block>) -> error::Result<Option<Justification<Block::Hash>>> {
+	fn justification(&self, id: BlockId<Block>) -> error::Result<Option<Block::Justification>> {
 		Ok(self.id(id).and_then(|hash| self.storage.read().blocks.get(&hash).and_then(|b|
 			b.justification().map(|x| x.clone()))
 		))
@@ -294,7 +293,7 @@ where
 		&mut self,
 		header: <Block as BlockT>::Header,
 		body: Option<Vec<<Block as BlockT>::Extrinsic>>,
-		justification: Option<Justification<Block::Hash>>,
+		justification: Option<Block::Justification>,
 		is_new_best: bool
 	) -> error::Result<()> {
 		assert!(self.pending_block.is_none(), "Only one block per operation is allowed");

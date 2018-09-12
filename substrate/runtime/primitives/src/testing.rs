@@ -20,7 +20,7 @@ use serde::{Serialize, de::DeserializeOwned};
 use std::fmt::Debug;
 use codec::Codec;
 use runtime_support::Dispatchable;
-use traits::{self, Checkable, Applyable, BlakeTwo256};
+use traits::{self, Checkable, Applyable, BlakeTwo256, Justification as JustificationT};
 
 pub use substrate_primitives::H256;
 
@@ -100,10 +100,15 @@ pub struct Block<Xt> {
 	pub extrinsics: Vec<Xt>,
 }
 
+#[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Debug, Encode, Decode)]
+pub struct Justification {}
+impl JustificationT for Justification {}
+
 impl<Xt: 'static + Codec + Sized + Send + Sync + Serialize + DeserializeOwned + Clone + Eq + Debug> traits::Block for Block<Xt> {
 	type Extrinsic = Xt;
 	type Header = Header;
 	type Hash = <Header as traits::Header>::Hash;
+	type Justification = Justification;
 
 	fn header(&self) -> &Self::Header {
 		&self.header

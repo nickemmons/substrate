@@ -58,7 +58,6 @@ pub mod testing;
 
 pub mod traits;
 pub mod generic;
-pub mod bft;
 
 use traits::{Verify, Lazy};
 

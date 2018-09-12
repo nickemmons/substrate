@@ -16,7 +16,6 @@ substrate-runtime-io = { path = "../../runtime-io", default_features = false }
 substrate-runtime-support = { path = "../../runtime-support", default_features = false }
 substrate-runtime-primitives = { path = "../primitives", default_features = false }
 substrate-runtime-balances = { path = "../balances", default_features = false }
-substrate-runtime-consensus = { path = "../consensus", default_features = false }
 substrate-runtime-system = { path = "../system", default_features = false }
 
 [features]
@@ -31,7 +30,6 @@ std = [
 	"substrate-runtime-io/std",
 	"substrate-runtime-support/std",
 	"substrate-runtime-primitives/std",
-	"substrate-runtime-consensus/std",
 	"substrate-runtime-balances/std",
 	"substrate-runtime-system/std",
 ]

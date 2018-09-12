@@ -36,6 +36,7 @@ pub mod error;
 
 extern crate substrate_codec as codec;
 extern crate substrate_primitives as primitives;
+extern crate substrate_runtime_consensus_rhd as rhd;
 extern crate substrate_runtime_support as runtime_support;
 extern crate substrate_runtime_primitives as runtime_primitives;
 extern crate substrate_runtime_version as runtime_version;
@@ -60,7 +61,7 @@ use codec::Encode;
 use ed25519::LocalizedSignature;
 use runtime_primitives::generic::BlockId;
 use runtime_primitives::traits::{Block, Header};
-use runtime_primitives::bft::{Message as PrimitiveMessage, Action as PrimitiveAction, Justification as PrimitiveJustification};
+use rhd::messages::{Message as PrimitiveMessage, Action as PrimitiveAction, Justification as PrimitiveJustification};
 use primitives::AuthorityId;
 
 use futures::{Async, Stream, Sink, Future, IntoFuture};

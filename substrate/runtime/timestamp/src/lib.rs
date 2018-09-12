@@ -35,7 +35,7 @@ extern crate serde_derive;
 extern crate substrate_primitives;
 extern crate substrate_runtime_primitives as runtime_primitives;
 extern crate substrate_runtime_system as system;
-extern crate substrate_runtime_consensus as consensus;
+extern crate substrate_runtime_consensus_rhd as consensus;
 extern crate substrate_codec as codec;
 
 use runtime_support::{StorageValue, Parameter};

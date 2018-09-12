@@ -14,7 +14,7 @@ substrate-runtime-primitives = { path = "../primitives", default_features = fals
 substrate-codec = { path = "../../codec", default_features = false }
 substrate-primitives = { path = "../../primitives", default_features = false }
 substrate-runtime-system = { path = "../system", default_features = false }
-substrate-runtime-consensus = { path = "../consensus", default_features = false }
+substrate-runtime-consensus-rhd = { path = "../consensus/rhd", default_features = false }
 
 [dev-dependencies]
 substrate-runtime-io = { path = "../../runtime-io", default_features = true }
@@ -26,7 +26,7 @@ std = [
 	"substrate-runtime-io/std",
 	"substrate-runtime-support/std",
 	"substrate-runtime-primitives/std",
-	"substrate-runtime-consensus/std",
+	"substrate-runtime-consensus-rhd/std",
 	"serde/std",
 	"serde_derive",
 	"substrate-codec/std",

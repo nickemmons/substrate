@@ -20,13 +20,12 @@ use client::{self, Client as SubstrateClient, ImportResult, ClientInfo, BlockSta
 use client::error::Error;
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT};
 use runtime_primitives::generic::BlockId;
-use runtime_primitives::bft::Justification;
 use primitives::{KeccakHasher, RlpCodec};
 
 /// Local client abstraction for the network.
 pub trait Client<Block: BlockT>: Send + Sync {
 	/// Import a new block. Parent is supposed to be existing in the blockchain.
-	fn import(&self, origin: BlockOrigin, header: Block::Header, justification: Justification<Block::Hash>, body: Option<Vec<Block::Extrinsic>>) -> Result<ImportResult, Error>;
+	fn import(&self, origin: BlockOrigin, header: Block::Header, justification: BlockT::Justification, body: Option<Vec<Block::Extrinsic>>) -> Result<ImportResult, Error>;
 
 	/// Get blockchain info.
 	fn info(&self) -> Result<ClientInfo<Block>, Error>;
@@ -44,7 +43,7 @@ pub trait Client<Block: BlockT>: Send + Sync {
 	fn body(&self, id: &BlockId<Block>) -> Result<Option<Vec<Block::Extrinsic>>, Error>;
 
 	/// Get block justification.
-	fn justification(&self, id: &BlockId<Block>) -> Result<Option<Justification<Block::Hash>>, Error>;
+	fn justification(&self, id: &BlockId<Block>) -> Result<Option<BlockT::Justification>, Error>;
 
 	/// Get block header proof.
 	fn header_proof(&self, block_number: <Block::Header as HeaderT>::Number) -> Result<(Block::Header, Vec<Vec<u8>>), Error>;
@@ -61,7 +60,7 @@ impl<B, E, Block> Client<Block> for SubstrateClient<B, E, Block> where
 	E: CallExecutor<Block, KeccakHasher, RlpCodec> + Send + Sync + 'static,
 	Block: BlockT,
 {
-	fn import(&self, origin: BlockOrigin, header: Block::Header, justification: Justification<Block::Hash>, body: Option<Vec<Block::Extrinsic>>) -> Result<ImportResult, Error> {
+	fn import(&self, origin: BlockOrigin, header: Block::Header, justification: BlockT::Justification, body: Option<Vec<Block::Extrinsic>>) -> Result<ImportResult, Error> {
 		// TODO: defer justification check.
 		let justified_header = self.check_justification(header, justification.into())?;
 		(self as &SubstrateClient<B, E, Block>).import_block(origin, justified_header, body)
@@ -87,7 +86,7 @@ impl<B, E, Block> Client<Block> for SubstrateClient<B, E, Block> where
 		(self as &SubstrateClient<B, E, Block>).body(id)
 	}
 
-	fn justification(&self, id: &BlockId<Block>) -> Result<Option<Justification<Block::Hash>>, Error> {
+	fn justification(&self, id: &BlockId<Block>) -> Result<Option<BlockT::Justification>, Error> {
 		(self as &SubstrateClient<B, E, Block>).justification(id)
 	}
 

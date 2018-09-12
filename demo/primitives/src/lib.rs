@@ -35,6 +35,7 @@ extern crate substrate_runtime_std as rstd;
 extern crate substrate_runtime_primitives as runtime_primitives;
 extern crate substrate_primitives as primitives;
 extern crate substrate_codec as codec;
+extern crate substrate_runtime_consensus_rhd as rhd;
 
 use rstd::prelude::*;
 use runtime_primitives::generic;
@@ -75,7 +76,7 @@ pub type Timestamp = u64;
 /// Header type.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256, generic::DigestItem<()>>;
 /// Block type.
-pub type Block = generic::Block<Header, UncheckedExtrinsic>;
+pub type Block = generic::Block<Header, UncheckedExtrinsic, rhd::messages::Justification<Hash>>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 

@@ -18,7 +18,7 @@ substrate-runtime-sandbox = { path = "../../runtime-sandbox", default_features =
 substrate-runtime-support = { path = "../../runtime-support", default_features = false }
 substrate-runtime-primitives = { path = "../primitives", default_features = false }
 substrate-runtime-balances = { path = "../balances", default_features = false }
-substrate-runtime-consensus = { path = "../consensus", default_features = false }
+substrate-runtime-consensus-rhd = { path = "../consensus/rhd", default_features = false }
 substrate-runtime-system = { path = "../system", default_features = false }
 substrate-runtime-session = { path = "../session", default_features = false }
 substrate-runtime-timestamp = { path = "../timestamp", default_features = false }
@@ -35,6 +35,7 @@ std = [
 	"substrate-primitives/std",
 	"substrate-runtime-std/std",
 	"substrate-runtime-io/std",
+	"substrate-runtime-consensus-rhd/std",
 	"substrate-runtime-sandbox/std",
 	"substrate-runtime-support/std",
 	"substrate-runtime-primitives/std",

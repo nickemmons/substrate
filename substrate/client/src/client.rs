@@ -20,7 +20,7 @@ use std::sync::Arc;
 use futures::sync::mpsc;
 use parking_lot::{Mutex, RwLock};
 use primitives::AuthorityId;
-use runtime_primitives::{bft::Justification, generic::{BlockId, SignedBlock, Block as RuntimeBlock}};
+use runtime_primitives::generic::{BlockId, SignedBlock, Block as RuntimeBlock};
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, Zero, One, As, NumberFor};
 use runtime_primitives::BuildStorage;
 use runtime_support::metadata::JSONMetadataDecodable;
@@ -150,13 +150,13 @@ pub struct BlockImportNotification<Block: BlockT> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct JustifiedHeader<Block: BlockT> {
 	header: <Block as BlockT>::Header,
-	justification: ::bft::Justification<Block::Hash>,
+	justification: Block::Justification,
 	authorities: Vec<AuthorityId>,
 }
 
 impl<Block: BlockT> JustifiedHeader<Block> {
 	/// Deconstruct the justified header into parts.
-	pub fn into_inner(self) -> (<Block as BlockT>::Header, ::bft::Justification<Block::Hash>, Vec<AuthorityId>) {
+	pub fn into_inner(self) -> (<Block as BlockT>::Header, Block::Justification, Vec<AuthorityId>) {
 		(self.header, self.justification, self.authorities)
 	}
 }
@@ -385,25 +385,26 @@ impl<B, E, Block> Client<B, E, Block> where
 	}
 
 	/// Check a header's justification.
-	pub fn check_justification(
-		&self,
-		header: <Block as BlockT>::Header,
-		justification: ::bft::UncheckedJustification<Block::Hash>,
-	) -> error::Result<JustifiedHeader<Block>> {
-		let parent_hash = header.parent_hash().clone();
-		let authorities = self.authorities_at(&BlockId::Hash(parent_hash))?;
-		let just = ::bft::check_justification::<Block>(&authorities[..], parent_hash, justification)
-			.map_err(|_|
-				error::ErrorKind::BadJustification(
-					format!("{}", header.hash())
-				)
-			)?;
-		Ok(JustifiedHeader {
-			header,
-			justification: just,
-			authorities,
-		})
-	}
+	// FIXME: move this to Justification-Trait
+	// pub fn check_justification(
+	// 	&self,
+	// 	header: <Block as BlockT>::Header,
+	// 	justification: ::bft::UncheckedJustification<Block::Hash>,
+	// ) -> error::Result<JustifiedHeader<Block>> {
+	// 	let parent_hash = header.parent_hash().clone();
+	// 	let authorities = self.authorities_at(&BlockId::Hash(parent_hash))?;
+	// 	let just = ::bft::check_justification::<Block>(&authorities[..], parent_hash, justification)
+	// 		.map_err(|_|
+	// 			error::ErrorKind::BadJustification(
+	// 				format!("{}", header.hash())
+	// 			)
+	// 		)?;
+	// 	Ok(JustifiedHeader {
+	// 		header,
+	// 		justification: just.into(),
+	// 		authorities,
+	// 	})
+	// }
 
 	/// Queue a block for import.
 	pub fn import_block(
@@ -437,7 +438,7 @@ impl<B, E, Block> Client<B, E, Block> where
 		origin: BlockOrigin,
 		hash: Block::Hash,
 		header: Block::Header,
-		justification: bft::Justification<Block::Hash>,
+		justification: Block::Justification,
 		body: Option<Vec<Block::Extrinsic>>,
 		authorities: Vec<AuthorityId>,
 	) -> error::Result<ImportResult> {
@@ -483,8 +484,7 @@ impl<B, E, Block> Client<B, E, Block> where
 
 		let is_new_best = header.number() == &(self.backend.blockchain().info()?.best_number + One::one());
 		trace!("Imported {}, (#{}), best={}, origin={:?}", hash, header.number(), is_new_best, origin);
-		let unchecked: bft::UncheckedJustification<_> = justification.uncheck().into();
-		transaction.set_block_data(header.clone(), body, Some(unchecked.into()), is_new_best)?;
+		transaction.set_block_data(header.clone(), body, Some(justification), is_new_best)?;
 		transaction.update_authorities(authorities);
 		if let Some(storage_update) = storage_update {
 			transaction.update_storage(storage_update)?;
@@ -573,15 +573,15 @@ impl<B, E, Block> Client<B, E, Block> where
 	}
 
 	/// Get block justification set by id.
-	pub fn justification(&self, id: &BlockId<Block>) -> error::Result<Option<Justification<Block::Hash>>> {
+	pub fn justification(&self, id: &BlockId<Block>) -> error::Result<Option<Block::Justification>> {
 		self.backend.blockchain().justification(*id)
 	}
 
 	/// Get full block by id.
-	pub fn block(&self, id: &BlockId<Block>) -> error::Result<Option<SignedBlock<Block::Header, Block::Extrinsic, Block::Hash>>> {
+	pub fn block(&self, id: &BlockId<Block>) -> error::Result<Option<SignedBlock<Block::Header, Block::Extrinsic, Block::Justification>>> {
 		Ok(match (self.header(id)?, self.body(id)?, self.justification(id)?) {
 			(Some(header), Some(extrinsics), Some(justification)) =>
-				Some(SignedBlock { block: RuntimeBlock { header, extrinsics }, justification }),
+				Some(SignedBlock { block: RuntimeBlock { header, extrinsics, _just: Default::default() }, justification }),
 			_ => None,
 		})
 	}

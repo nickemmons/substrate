@@ -10,6 +10,7 @@ substrate-codec = { path = "../../substrate/codec", default_features = false }
 substrate-codec-derive = { path = "../../substrate/codec/derive", default_features = false }
 substrate-primitives = { path = "../../substrate/primitives", default_features = false }
 substrate-runtime-std = { path = "../../substrate/runtime-std", default_features = false }
+substrate-runtime-consensus-rhd = { path = "../../substrate/runtime/consensus/rhd", default_features = false }
 substrate-runtime-primitives = { path = "../../substrate/runtime/primitives", default_features = false }
 
 [dev-dependencies]
@@ -23,6 +24,7 @@ std = [
 	"substrate-codec/std",
 	"substrate-primitives/std",
 	"substrate-runtime-std/std",
+	"substrate-runtime-consensus-rhd/std",
 	"substrate-runtime-primitives/std",
 	"serde_derive",
 	"serde/std",

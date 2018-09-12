@@ -44,7 +44,7 @@ extern crate substrate_codec_derive;
 extern crate substrate_runtime_io as runtime_io;
 extern crate substrate_codec as codec;
 extern crate substrate_runtime_primitives as primitives;
-extern crate substrate_runtime_consensus as consensus;
+extern crate substrate_runtime_consensus_rhd as consensus;
 extern crate substrate_runtime_system as system;
 extern crate substrate_runtime_timestamp as timestamp;
 
