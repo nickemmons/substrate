@@ -19,17 +19,18 @@
 use error;
 use primitives::AuthorityId;
 use runtime_primitives::generic::BlockId;
-use runtime_primitives::traits::{Block as BlockT, NumberFor};
+use runtime_primitives::traits::{Block as BlockT, Justification as JustificationT, NumberFor};
 use state_machine::backend::Backend as StateBackend;
 use patricia_trie::NodeCodec;
 use hashdb::Hasher;
 
 /// Block insertion operation. Keeps hold if the inserted block state and data.
-pub trait BlockImportOperation<Block, H, C>
+pub trait BlockImportOperation<Block, H, C, J>
 where
 	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
+	J: JustificationT,
 {
 	/// Associated state backend type.
 	type State: StateBackend<H, C>;
@@ -41,7 +42,7 @@ where
 		&mut self,
 		header: Block::Header,
 		body: Option<Vec<Block::Extrinsic>>,
-		justification: Option<Block::Justification>,
+		justification: Option<J>,
 		is_new_best: bool
 	) -> error::Result<()>;
 
@@ -62,16 +63,17 @@ where
 ///
 /// The same applies for live `BlockImportOperation`s: while an import operation building on a parent `P`
 /// is alive, the state for `P` should not be pruned.
-pub trait Backend<Block, H, C>: Send + Sync
+pub trait Backend<Block, H, C, J>: Send + Sync
 where
 	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
+	J: JustificationT,
 {
 	/// Associated block insertion operation type.
-	type BlockImportOperation: BlockImportOperation<Block, H, C>;
+	type BlockImportOperation: BlockImportOperation<Block, H, C, J>;
 	/// Associated blockchain backend type.
-	type Blockchain: ::blockchain::Backend<Block>;
+	type Blockchain: ::blockchain::Backend<Block, J>;
 	/// Associated state backend type.
 	type State: StateBackend<H, C>;
 
@@ -90,17 +92,19 @@ where
 }
 
 /// Mark for all Backend implementations, that are making use of state data, stored locally.
-pub trait LocalBackend<Block, H, C>: Backend<Block, H, C>
+pub trait LocalBackend<Block, H, C, J>: Backend<Block, H, C, J>
 where
 	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
+	J: JustificationT,
 {}
 
 /// Mark for all Backend implementations, that are fetching required state data from remote nodes.
-pub trait RemoteBackend<Block, H, C>: Backend<Block, H, C>
+pub trait RemoteBackend<Block, H, C, J>: Backend<Block, H, C, J>
 where
 	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
+	J: JustificationT,
 {}

@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::cmp::Ord;
 use runtime_primitives::generic::BlockId;
-use runtime_primitives::traits::Block as BlockT;
+use runtime_primitives::traits::{Block as BlockT, Justification as JustificationT};
 use state_machine::{self, OverlayedChanges, Ext,
 	CodeExecutor, ExecutionManager, native_when_possible};
 use executor::{RuntimeVersion, RuntimeInfo};
@@ -94,32 +94,35 @@ where
 
 /// Call executor that executes methods locally, querying all required
 /// data from local backend.
-pub struct LocalCallExecutor<B, E> {
+pub struct LocalCallExecutor<B, E, J> {
 	backend: Arc<B>,
 	executor: E,
+	_justification: ::std::marker::PhantomData<J>,
 }
 
-impl<B, E> LocalCallExecutor<B, E> {
+impl<B, E, J> LocalCallExecutor<B, E, J> {
 	/// Creates new instance of local call executor.
 	pub fn new(backend: Arc<B>, executor: E) -> Self {
-		LocalCallExecutor { backend, executor }
+		LocalCallExecutor { backend, executor, _justification: Default::default() }
 	}
 }
 
-impl<B, E> Clone for LocalCallExecutor<B, E> where E: Clone {
+impl<B, E, J> Clone for LocalCallExecutor<B, E, J> where E: Clone {
 	fn clone(&self) -> Self {
 		LocalCallExecutor {
 			backend: self.backend.clone(),
 			executor: self.executor.clone(),
+			_justification: Default::default(),
 		}
 	}
 }
 
-impl<B, E, Block> CallExecutor<Block, KeccakHasher, RlpCodec> for LocalCallExecutor<B, E>
+impl<B, E, Block, J> CallExecutor<Block, KeccakHasher, RlpCodec> for LocalCallExecutor<B, E, J>
 where
-	B: backend::LocalBackend<Block, KeccakHasher, RlpCodec>,
+	B: backend::LocalBackend<Block, KeccakHasher, RlpCodec, J>,
 	E: CodeExecutor<KeccakHasher> + RuntimeInfo,
 	Block: BlockT,
+	J: JustificationT
 {
 	type Error = E::Error;
 

@@ -61,25 +61,21 @@ impl<Block: BlockT> fmt::Display for BlockId<Block> {
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "std", serde(deny_unknown_fields))]
-pub struct Block<Header, Extrinsic, Justification> {
+pub struct Block<Header, Extrinsic> {
 	/// The block header.
 	pub header: Header,
 	/// The accompanying extrinsics.
 	pub extrinsics: Vec<Extrinsic>,
-	// making the compiler happy
-	_just: ::std::marker::PhantomData<Justification>,
 }
 
-impl<Header, Extrinsic, Justification> traits::Block for Block<Header, Extrinsic, Justification>
+impl<Header, Extrinsic> traits::Block for Block<Header, Extrinsic>
 where
 	Header: HeaderT,
 	Extrinsic: Member + Codec,
-	Justification: JustificationT + fmt::Debug,
 {
 	type Extrinsic = Extrinsic;
 	type Header = Header;
 	type Hash = <Self::Header as traits::Header>::Hash;
-	type Justification = Justification;
 
 	fn header(&self) -> &Self::Header {
 		&self.header
@@ -91,18 +87,61 @@ where
 		(self.header, self.extrinsics)
 	}
 	fn new(header: Self::Header, extrinsics: Vec<Self::Extrinsic>) -> Self {
-		Block { header, extrinsics, _just: Default::default() }
+		Block { header, extrinsics }
 	}
 }
+
+/// Abstraction over a justification
+#[derive(PartialEq, Eq, Clone, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
+pub struct Justification<I> (I);
+
+impl<I> Justification<I> {
+	pub fn into_inner(self) -> I {
+		self.0
+	}
+	pub fn wrap(inner: I) -> Self {
+		Justification(inner)
+	}
+}
+
+impl<I> JustificationT for Justification<I> 
+where I: Codec + Member
+{}
 
 /// Abstraction over a substrate block and justification.
 #[derive(PartialEq, Eq, Clone, Encode, Decode)]
 #[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
 #[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
 #[cfg_attr(feature = "std", serde(deny_unknown_fields))]
-pub struct SignedBlock<Header, Extrinsic, Justification> {
+pub struct SignedBlock<Block, Justification> {
 	/// Full block.
-	pub block: Block<Header, Extrinsic, Justification>,
+	pub block: Block,
 	/// Block header justification.
 	pub justification: Justification,
+}
+
+impl<Block, Justification> traits::SignedBlock for SignedBlock<Block, Justification>
+where
+	Block: traits::Block,
+	Justification: traits::Justification,
+{
+	type Block = Block;
+	type Justification = Justification;
+
+	fn block(&self) -> &Self::Block {
+		&self.block
+	}
+
+	fn justification(&self) -> &Self::Justification {
+		&self.justification
+	}
+
+	fn new(block: Self::Block, justification: Self::Justification) -> Self {
+		SignedBlock { block, justification }
+	}
+
+
 }

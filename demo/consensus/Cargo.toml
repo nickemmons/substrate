@@ -23,6 +23,7 @@ substrate-primitives = { path = "../../substrate/primitives" }
 substrate-runtime-support = { path = "../../substrate/runtime-support" }
 substrate-client = { path = "../../substrate/client" }
 substrate-runtime-primitives = { path = "../../substrate/runtime/primitives" }
+substrate-runtime-consensus-rhd = { path = "../../substrate/runtime/consensus/rhd" }
 
 [dev-dependencies]
 substrate-keyring = { path = "../../substrate/keyring" }

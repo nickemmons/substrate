@@ -374,7 +374,7 @@ pub trait Header: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stat
 }
 
 /// Justification for a given Block
-pub trait Justification: Clone + Send + Sync + Codec + Eq + 'static {
+pub trait Justification: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'static {
 
 }
 
@@ -386,7 +386,6 @@ pub trait Block: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stati
 	type Extrinsic: Member + Codec;
 	type Header: Header<Hash=Self::Hash>;
 	type Hash: Member + ::rstd::hash::Hash + Copy + MaybeDisplay + Default + SimpleBitOps + Codec + AsRef<[u8]>;
-	type Justification: Justification;
 
 	fn header(&self) -> &Self::Header;
 	fn extrinsics(&self) -> &[Self::Extrinsic];
@@ -395,6 +394,15 @@ pub trait Block: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stati
 	fn hash(&self) -> Self::Hash {
 		<<Self::Header as Header>::Hashing as Hash>::hash_of(self.header())
 	}
+}
+
+pub trait SignedBlock: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'static {
+	type Block: Block;
+	type Justification: Justification;
+
+	fn block(&self) -> &Self::Block;
+	fn justification(&self) -> &Self::Justification;
+	fn new(block: Self::Block, justification: Self::Justification) -> Self;
 }
 
 

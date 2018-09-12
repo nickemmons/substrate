@@ -21,7 +21,7 @@ use std::sync::Arc;
 use futures::{IntoFuture, Future};
 
 use runtime_primitives::generic::BlockId;
-use runtime_primitives::traits::{Block as BlockT, Header as HeaderT};
+use runtime_primitives::traits::{Block as BlockT, Justification as JustificationT, Header as HeaderT};
 use state_machine::{Backend as StateBackend, CodeExecutor, OverlayedChanges,
 	execution_proof_check, ExecutionManager};
 use primitives::H256;
@@ -40,39 +40,38 @@ use std::marker::PhantomData;
 
 /// Call executor that executes methods on remote node, querying execution proof
 /// and checking proof by re-executing locally.
-pub struct RemoteCallExecutor<B, F, H, C> {
+pub struct RemoteCallExecutor<B, F, H, C, J> {
 	blockchain: Arc<B>,
 	fetcher: Arc<F>,
-	_hasher: PhantomData<H>,
-	_codec: PhantomData<C>,
+	_phantom: PhantomData<(H, C, J)>
 }
 
-impl<B, F, H, C> Clone for RemoteCallExecutor<B, F, H, C> {
+impl<B, F, H, C, J> Clone for RemoteCallExecutor<B, F, H, C, J> {
 	fn clone(&self) -> Self {
 		RemoteCallExecutor {
 			blockchain: self.blockchain.clone(),
 			fetcher: self.fetcher.clone(),
-			_hasher: Default::default(),
-			_codec: Default::default(),
+			_phantom: Default::default(),
 		}
 	}
 }
 
-impl<B, F, H, C> RemoteCallExecutor<B, F, H, C> {
+impl<B, F, H, C, J> RemoteCallExecutor<B, F, H, C, J> {
 	/// Creates new instance of remote call executor.
 	pub fn new(blockchain: Arc<B>, fetcher: Arc<F>) -> Self {
-		RemoteCallExecutor { blockchain, fetcher, _hasher: PhantomData, _codec: PhantomData }
+		RemoteCallExecutor { blockchain, fetcher, _phantom: PhantomData }
 	}
 }
 
-impl<B, F, Block, H, C> CallExecutor<Block, H, C> for RemoteCallExecutor<B, F, H, C>
+impl<B, F, Block, H, C, J> CallExecutor<Block, H, C> for RemoteCallExecutor<B, F, H, C, J>
 where
 	Block: BlockT,
-	B: ChainBackend<Block>,
+	B: ChainBackend<Block, J>,
 	F: Fetcher<Block>,
 	H: Hasher,
 	H::Out: Ord + Encodable,
-	C: NodeCodec<H>
+	C: NodeCodec<H>,
+	J: JustificationT,
 {
 	type Error = ClientError;
 

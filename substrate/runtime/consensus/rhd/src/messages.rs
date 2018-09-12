@@ -17,7 +17,7 @@
 //! Message formats for the BFT consensus layer.
 
 use rstd::prelude::*;
-use codec::{Codec, Decode, Encode, Input, Output};
+use codec::{Decode, Encode, Input, Output};
 use substrate_primitives::{AuthorityId, Signature};
 use primitives::traits;
 
@@ -70,10 +70,6 @@ pub struct Justification<H> {
 	/// The signatures and signers of the hash.
 	pub signatures: Vec<(AuthorityId, Signature)>
 }
-
-impl<H: 'static> traits::Justification for Justification<H>
-where
-	H : Codec + Clone + Eq + Sync + Send {}
 
 // single-byte code to represent misbehavior kind.
 #[repr(i8)]

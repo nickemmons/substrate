@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 
 use primitives::AuthorityId;
 use runtime_primitives::generic::BlockId;
-use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, NumberFor, Zero};
+use runtime_primitives::traits::{Block as BlockT, Justification as JustificationT, Header as HeaderT, NumberFor, Zero};
 
 use blockchain::{Backend as BlockchainBackend, BlockStatus, Cache as BlockchainCache,
 	HeaderBackend as BlockchainHeaderBackend, Info as BlockchainInfo};
@@ -32,7 +32,7 @@ use error::{ErrorKind as ClientErrorKind, Result as ClientResult};
 use light::fetcher::{Fetcher, RemoteHeaderRequest};
 
 /// Light client blockchain storage.
-pub trait Storage<Block: BlockT>: BlockchainHeaderBackend<Block> {
+pub trait Storage<Block: BlockT, J: JustificationT>: BlockchainHeaderBackend<Block, J> {
 	/// Store new header.
 	fn import_header(
 		&self,
@@ -79,7 +79,13 @@ impl<S, F> Blockchain<S, F> {
 	}
 }
 
-impl<S, F, Block> BlockchainHeaderBackend<Block> for Blockchain<S, F> where Block: BlockT, S: Storage<Block>, F: Fetcher<Block> {
+impl<S, F, Block, J> BlockchainHeaderBackend<Block, J> for Blockchain<S, F>
+where
+	Block: BlockT,
+	S: Storage<Block, J>,
+	F: Fetcher<Block>,
+	J: JustificationT,
+{
 	fn header(&self, id: BlockId<Block>) -> ClientResult<Option<Block::Header>> {
 		match self.storage.header(id)? {
 			Some(header) => Ok(Some(header)),
@@ -126,13 +132,19 @@ impl<S, F, Block> BlockchainHeaderBackend<Block> for Blockchain<S, F> where Bloc
 	}
 }
 
-impl<S, F, Block> BlockchainBackend<Block> for Blockchain<S, F> where Block: BlockT, S: Storage<Block>, F: Fetcher<Block> {
+impl<S, F, Block, J> BlockchainBackend<Block, J> for Blockchain<S, F>
+where
+	Block: BlockT,
+	S: Storage<Block, J>,
+	F: Fetcher<Block>,
+	J: JustificationT,
+{
 	fn body(&self, _id: BlockId<Block>) -> ClientResult<Option<Vec<Block::Extrinsic>>> {
 		// TODO [light]: fetch from remote node
 		Ok(None)
 	}
 
-	fn justification(&self, _id: BlockId<Block>) -> ClientResult<Option<Block::Justification>> {
+	fn justification(&self, _id: BlockId<Block>) -> ClientResult<Option<J>> {
 		Ok(None)
 	}
 

@@ -108,7 +108,6 @@ impl<Xt: 'static + Codec + Sized + Send + Sync + Serialize + DeserializeOwned + 
 	type Extrinsic = Xt;
 	type Header = Header;
 	type Hash = <Header as traits::Header>::Hash;
-	type Justification = Justification;
 
 	fn header(&self) -> &Self::Header {
 		&self.header

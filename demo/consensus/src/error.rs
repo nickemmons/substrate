@@ -21,7 +21,7 @@ use primitives::AuthorityId;
 error_chain! {
 	links {
 		Api(::demo_api::Error, ::demo_api::ErrorKind);
-		Bft(::bft::Error, ::bft::ErrorKind);
+		Bft(::rhd::Error, ::rhd::ErrorKind);
 	}
 
 	errors {
@@ -44,8 +44,8 @@ error_chain! {
 	}
 }
 
-impl From<::bft::InputStreamConcluded> for Error {
-	fn from(err: ::bft::InputStreamConcluded) -> Self {
-		::bft::Error::from(err).into()
+impl From<::rhd::InputStreamConcluded> for Error {
+	fn from(err: ::rhd::InputStreamConcluded) -> Self {
+		::rhd::Error::from(err).into()
 	}
 }

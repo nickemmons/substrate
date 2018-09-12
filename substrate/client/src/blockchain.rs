@@ -17,13 +17,13 @@
 //! Polkadot blockchain trait
 
 use primitives::AuthorityId;
-use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, NumberFor};
+use runtime_primitives::traits::{Block as BlockT, Justification as JustificationT, Header as HeaderT, NumberFor};
 use runtime_primitives::generic::BlockId;
 
 use error::{ErrorKind, Result};
 
 /// Blockchain database header backend. Does not perform any validation.
-pub trait HeaderBackend<Block: BlockT>: Send + Sync {
+pub trait HeaderBackend<Block: BlockT, J: JustificationT>: Send + Sync {
 	/// Get block header. Returns `None` if block is not found.
 	fn header(&self, id: BlockId<Block>) -> Result<Option<Block::Header>>;
 	/// Get blockchain info.
@@ -42,11 +42,11 @@ pub trait HeaderBackend<Block: BlockT>: Send + Sync {
 }
 
 /// Blockchain database backend. Does not perform any validation.
-pub trait Backend<Block: BlockT>: HeaderBackend<Block> {
+pub trait Backend<Block: BlockT, J: JustificationT>: HeaderBackend<Block, J> {
 	/// Get block body. Returns `None` if block is not found.
 	fn body(&self, id: BlockId<Block>) -> Result<Option<Vec<<Block as BlockT>::Extrinsic>>>;
 	/// Get block justification. Returns `None` if justification does not exist.
-	fn justification(&self, id: BlockId<Block>) -> Result<Option<Block::Justification>>;
+	fn justification(&self, id: BlockId<Block>) -> Result<Option<J>>;
 
 	/// Returns data cache reference, if it is enabled on this backend.
 	fn cache(&self) -> Option<&Cache<Block>>;

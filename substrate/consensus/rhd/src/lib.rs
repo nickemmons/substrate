@@ -59,7 +59,7 @@ use std::time::{Instant, Duration};
 
 use codec::Encode;
 use ed25519::LocalizedSignature;
-use runtime_primitives::generic::BlockId;
+use runtime_primitives::generic::{BlockId, Justification as JustificationG};
 use runtime_primitives::traits::{Block, Header};
 use rhd::messages::{Message as PrimitiveMessage, Action as PrimitiveAction, Justification as PrimitiveJustification};
 use primitives::AuthorityId;
@@ -92,10 +92,10 @@ pub type LocalizedMessage<B> = rhododendron::LocalizedMessage<
 >;
 
 /// Justification of some hash.
-pub type Justification<H> = rhododendron::Justification<H, LocalizedSignature>;
+pub type Justification<H> = JustificationG<rhododendron::Justification<H, LocalizedSignature>>;
 
 /// Justification of a prepare message.
-pub type PrepareJustification<H> = rhododendron::PrepareJustification<H, LocalizedSignature>;
+pub type PrepareJustification<H> = JustificationG<rhododendron::PrepareJustification<H, LocalizedSignature>>;
 
 /// Unchecked justification.
 pub struct UncheckedJustification<H>(rhododendron::UncheckedJustification<H, LocalizedSignature>);
@@ -388,7 +388,7 @@ impl<B, P, I, InStream, OutSink> Future for BftFuture<B, P, I, InStream, OutSink
 
 			let import_ok = self.import.import_block(
 				justified_block,
-				committed.justification,
+				JustificationG::wrap(committed.justification),
 				&self.inner.context().authorities
 			);
 
@@ -631,7 +631,7 @@ fn check_justification_signed_message<H>(authorities: &[AuthorityId], message: &
 		} else {
 			None
 		}
-	}).map_err(UncheckedJustification)
+	}).map(JustificationG::wrap).map_err(UncheckedJustification)
 }
 
 /// Check a full justification for a header hash.

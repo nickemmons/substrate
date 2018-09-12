@@ -21,7 +21,7 @@ use futures::sync::mpsc;
 use parking_lot::{Mutex, RwLock};
 use primitives::AuthorityId;
 use runtime_primitives::generic::{BlockId, SignedBlock, Block as RuntimeBlock};
-use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, Zero, One, As, NumberFor};
+use runtime_primitives::traits::{Block as BlockT, SignedBlock as SignedBlockT, Justification as JustificationT, Header as HeaderT, Zero, One, As, NumberFor};
 use runtime_primitives::BuildStorage;
 use runtime_support::metadata::JSONMetadataDecodable;
 use primitives::{KeccakHasher, RlpCodec};
@@ -37,13 +37,13 @@ use blockchain::{self, Info as ChainInfo, Backend as ChainBackend, HeaderBackend
 use call_executor::{CallExecutor, LocalCallExecutor};
 use executor::{RuntimeVersion, RuntimeInfo};
 use notifications::{StorageNotifications, StorageEventStream};
-use {cht, error, in_mem, block_builder, runtime_io, bft, genesis};
+use {cht, error, in_mem, block_builder, runtime_io, genesis};
 
 /// Type that implements `futures::Stream` of block import events.
 pub type BlockchainEventStream<Block> = mpsc::UnboundedReceiver<BlockImportNotification<Block>>;
 
 /// Substrate Client
-pub struct Client<B, E, Block> where Block: BlockT {
+pub struct Client<B, E, Block, J> where Block: BlockT, J: JustificationT {
 	backend: Arc<B>,
 	executor: E,
 	storage_notifications: Mutex<StorageNotifications<Block>>,
@@ -51,6 +51,7 @@ pub struct Client<B, E, Block> where Block: BlockT {
 	import_lock: Mutex<()>,
 	importing_block: RwLock<Option<Block::Hash>>, // holds the block hash currently being imported. TODO: replace this with block queue
 	execution_strategy: ExecutionStrategy,
+	_justification: ::std::marker::PhantomData<J>
 }
 
 /// A source of blockchain evenets.
@@ -148,38 +149,40 @@ pub struct BlockImportNotification<Block: BlockT> {
 
 /// A header paired with a justification which has already been checked.
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct JustifiedHeader<Block: BlockT> {
+pub struct JustifiedHeader<Block: BlockT, J: JustificationT> {
 	header: <Block as BlockT>::Header,
-	justification: Block::Justification,
+	justification: J,
 	authorities: Vec<AuthorityId>,
 }
 
-impl<Block: BlockT> JustifiedHeader<Block> {
+impl<Block: BlockT, J: JustificationT> JustifiedHeader<Block, J> {
 	/// Deconstruct the justified header into parts.
-	pub fn into_inner(self) -> (<Block as BlockT>::Header, Block::Justification, Vec<AuthorityId>) {
+	pub fn into_inner(self) -> (<Block as BlockT>::Header, J, Vec<AuthorityId>) {
 		(self.header, self.justification, self.authorities)
 	}
 }
 
 /// Create an instance of in-memory client.
-pub fn new_in_mem<E, Block, S>(
+pub fn new_in_mem<E, Block, S, J>(
 	executor: E,
 	genesis_storage: S,
-) -> error::Result<Client<in_mem::Backend<Block, KeccakHasher, RlpCodec>, LocalCallExecutor<in_mem::Backend<Block, KeccakHasher, RlpCodec>, E>, Block>>
+) -> error::Result<Client<in_mem::Backend<Block, KeccakHasher, RlpCodec, J>, LocalCallExecutor<in_mem::Backend<Block, KeccakHasher, RlpCodec, J>, E, J>, Block, J>>
 	where
 		E: CodeExecutor<KeccakHasher> + RuntimeInfo,
 		S: BuildStorage,
 		Block: BlockT,
+		J: JustificationT,
 {
 	let backend = Arc::new(in_mem::Backend::new());
 	let executor = LocalCallExecutor::new(backend.clone(), executor);
 	Client::new(backend, executor, genesis_storage, ExecutionStrategy::NativeWhenPossible)
 }
 
-impl<B, E, Block> Client<B, E, Block> where
-	B: backend::Backend<Block, KeccakHasher, RlpCodec>,
+impl<B, E, Block, J> Client<B, E, Block, J> where
+	B: backend::Backend<Block, KeccakHasher, RlpCodec, J>,
 	E: CallExecutor<Block, KeccakHasher, RlpCodec>,
 	Block: BlockT,
+	J: JustificationT
 {
 	/// Creates new Substrate Client with given blockchain and code executor.
 	pub fn new<S: BuildStorage>(
@@ -205,6 +208,7 @@ impl<B, E, Block> Client<B, E, Block> where
 			import_lock: Default::default(),
 			importing_block: Default::default(),
 			execution_strategy,
+			_justification: Default::default(),
 		})
 	}
 
@@ -326,14 +330,14 @@ impl<B, E, Block> Client<B, E, Block> where
 	}
 
 	/// Create a new block, built on the head of the chain.
-	pub fn new_block(&self) -> error::Result<block_builder::BlockBuilder<B, E, Block, KeccakHasher, RlpCodec>>
+	pub fn new_block(&self) -> error::Result<block_builder::BlockBuilder<B, E, Block, KeccakHasher, RlpCodec, J>>
 	where E: Clone
 	{
 		block_builder::BlockBuilder::new(self)
 	}
 
 	/// Create a new block, built on top of `parent`.
-	pub fn new_block_at(&self, parent: &BlockId<Block>) -> error::Result<block_builder::BlockBuilder<B, E, Block, KeccakHasher, RlpCodec>>
+	pub fn new_block_at(&self, parent: &BlockId<Block>) -> error::Result<block_builder::BlockBuilder<B, E, Block, KeccakHasher, RlpCodec, J>>
 	where E: Clone
 	{
 		block_builder::BlockBuilder::at_block(parent, &self)
@@ -389,11 +393,11 @@ impl<B, E, Block> Client<B, E, Block> where
 	// pub fn check_justification(
 	// 	&self,
 	// 	header: <Block as BlockT>::Header,
-	// 	justification: ::bft::UncheckedJustification<Block::Hash>,
-	// ) -> error::Result<JustifiedHeader<Block>> {
+	// 	justification: ::rhd::UncheckedJustification<Block::Hash>,
+	// ) -> error::Result<JustifiedHeader<Block, J>> {
 	// 	let parent_hash = header.parent_hash().clone();
 	// 	let authorities = self.authorities_at(&BlockId::Hash(parent_hash))?;
-	// 	let just = ::bft::check_justification::<Block>(&authorities[..], parent_hash, justification)
+	// 	let just = ::rhd::check_justification::<Block>(&authorities[..], parent_hash, justification)
 	// 		.map_err(|_|
 	// 			error::ErrorKind::BadJustification(
 	// 				format!("{}", header.hash())
@@ -401,7 +405,7 @@ impl<B, E, Block> Client<B, E, Block> where
 	// 		)?;
 	// 	Ok(JustifiedHeader {
 	// 		header,
-	// 		justification: just.into(),
+	// 		justification: just,
 	// 		authorities,
 	// 	})
 	// }
@@ -410,7 +414,7 @@ impl<B, E, Block> Client<B, E, Block> where
 	pub fn import_block(
 		&self,
 		origin: BlockOrigin,
-		header: JustifiedHeader<Block>,
+		header: JustifiedHeader<Block, J>,
 		body: Option<Vec<<Block as BlockT>::Extrinsic>>,
 	) -> error::Result<ImportResult> {
 		let (header, justification, authorities) = header.into_inner();
@@ -438,7 +442,7 @@ impl<B, E, Block> Client<B, E, Block> where
 		origin: BlockOrigin,
 		hash: Block::Hash,
 		header: Block::Header,
-		justification: Block::Justification,
+		justification: J,
 		body: Option<Vec<Block::Extrinsic>>,
 		authorities: Vec<AuthorityId>,
 	) -> error::Result<ImportResult> {
@@ -573,15 +577,24 @@ impl<B, E, Block> Client<B, E, Block> where
 	}
 
 	/// Get block justification set by id.
-	pub fn justification(&self, id: &BlockId<Block>) -> error::Result<Option<Block::Justification>> {
+	pub fn justification(&self, id: &BlockId<Block>) -> error::Result<Option<J>> {
 		self.backend.blockchain().justification(*id)
 	}
 
 	/// Get full block by id.
-	pub fn block(&self, id: &BlockId<Block>) -> error::Result<Option<SignedBlock<Block::Header, Block::Extrinsic, Block::Justification>>> {
+	pub fn block(&self, id: &BlockId<Block>) -> error::Result<
+		Option<
+			SignedBlock<
+				RuntimeBlock<
+					Block::Header,
+					Block::Extrinsic>,
+				J>
+			>
+		>
+	{
 		Ok(match (self.header(id)?, self.body(id)?, self.justification(id)?) {
 			(Some(header), Some(extrinsics), Some(justification)) =>
-				Some(SignedBlock { block: RuntimeBlock { header, extrinsics, _just: Default::default() }, justification }),
+				Some(SignedBlock::new(RuntimeBlock::new(header, extrinsics ), justification)),
 			_ => None,
 		})
 	}
@@ -593,56 +606,60 @@ impl<B, E, Block> Client<B, E, Block> where
 	}
 }
 
-impl<B, E, Block> bft::BlockImport<Block> for Client<B, E, Block>
-	where
-		B: backend::Backend<Block, KeccakHasher, RlpCodec>,
-		E: CallExecutor<Block, KeccakHasher, RlpCodec>,
-		Block: BlockT,
-{
-	fn import_block(
-		&self,
-		block: Block,
-		justification: ::bft::Justification<Block::Hash>,
-		authorities: &[AuthorityId]
-	) -> bool {
-		let (header, extrinsics) = block.deconstruct();
-		let justified_header = JustifiedHeader {
-			header: header,
-			justification,
-			authorities: authorities.to_vec(),
-		};
+/// FIXME: RHD specifics -> remove 
+// impl<B, E, Block, J> rhd::BlockImport<Block> for Client<B, E, Block, J>
+// 	where
+// 		B: backend::Backend<Block, KeccakHasher, RlpCodec, J>,
+// 		E: CallExecutor<Block, KeccakHasher, RlpCodec>,
+// 		Block: BlockT,
+// 		J: JustificationT
+// {
+// 	fn import_block(
+// 		&self,
+// 		block: Block,
+// 		justification: rhd::Justification<Block::Hash>,
+// 		authorities: &[AuthorityId]
+// 	) -> bool {
+// 		let (header, extrinsics) = block.deconstruct();
+// 		let justified_header = JustifiedHeader {
+// 			header: header,
+// 			justification.into(),
+// 			authorities: authorities.to_vec(),
+// 		};
 
-		self.import_block(BlockOrigin::ConsensusBroadcast, justified_header, Some(extrinsics)).is_ok()
-	}
-}
+// 		self.import_block(BlockOrigin::ConsensusBroadcast, justified_header, Some(extrinsics)).is_ok()
+// 	}
+// }
 
-impl<B, E, Block> bft::Authorities<Block> for Client<B, E, Block>
-	where
-		B: backend::Backend<Block, KeccakHasher, RlpCodec>,
-		E: CallExecutor<Block, KeccakHasher, RlpCodec>,
-		Block: BlockT,
-{
-	fn authorities(&self, at: &BlockId<Block>) -> Result<Vec<AuthorityId>, bft::Error> {
-		let on_chain_version: Result<_, bft::Error> = self.runtime_version_at(at)
-			.map_err(|e| { trace!("Error getting runtime version {:?}", e); bft::ErrorKind::RuntimeVersionMissing.into() });
-		let on_chain_version = on_chain_version?;
-		let native_version: Result<_, bft::Error> = self.executor.native_runtime_version()
-			.ok_or_else(|| bft::ErrorKind::NativeRuntimeMissing.into());
-		let native_version = native_version?;
-		if !on_chain_version.can_author_with(&native_version) {
-			return Err(bft::ErrorKind::IncompatibleAuthoringRuntime(on_chain_version, native_version).into())
-		}
-		self.authorities_at(at).map_err(|_| {
-			let descriptor = format!("{:?}", at);
-			bft::ErrorKind::StateUnavailable(descriptor).into()
-		})
-	}
-}
+// impl<B, E, Block, J> rhd::Authorities<Block> for Client<B, E, Block, J>
+// 	where
+// 		B: backend::Backend<Block, KeccakHasher, RlpCodec, J>,
+// 		E: CallExecutor<Block, KeccakHasher, RlpCodec>,
+// 		Block: BlockT,
+// 		J: JustificationT
+// {
+// 	fn authorities(&self, at: &BlockId<Block>) -> Result<Vec<AuthorityId>, rhd::Error> {
+// 		let on_chain_version: Result<_, rhd::Error> = self.runtime_version_at(at)
+// 			.map_err(|e| { trace!("Error getting runtime version {:?}", e); rhd::ErrorKind::RuntimeVersionMissing.into() });
+// 		let on_chain_version = on_chain_version?;
+// 		let native_version: Result<_, rhd::Error> = self.executor.native_runtime_version()
+// 			.ok_or_else(|| rhd::ErrorKind::NativeRuntimeMissing.into());
+// 		let native_version = native_version?;
+// 		if !on_chain_version.can_author_with(&native_version) {
+// 			return Err(rhd::ErrorKind::IncompatibleAuthoringRuntime(on_chain_version, native_version).into())
+// 		}
+// 		self.authorities_at(at).map_err(|_| {
+// 			let descriptor = format!("{:?}", at);
+// 			rhd::ErrorKind::StateUnavailable(descriptor).into()
+// 		})
+// 	}
+// }
 
-impl<B, E, Block> BlockchainEvents<Block> for Client<B, E, Block>
+impl<B, E, Block, J> BlockchainEvents<Block> for Client<B, E, Block, J>
 where
 	E: CallExecutor<Block, KeccakHasher, RlpCodec>,
 	Block: BlockT,
+	J: JustificationT
 {
 	/// Get block import event stream.
 	fn import_notification_stream(&self) -> BlockchainEventStream<Block> {
@@ -657,22 +674,24 @@ where
 	}
 }
 
-impl<B, E, Block> ChainHead<Block> for Client<B, E, Block>
+impl<B, E, Block, J> ChainHead<Block> for Client<B, E, Block, J>
 where
-	B: backend::Backend<Block, KeccakHasher, RlpCodec>,
+	B: backend::Backend<Block, KeccakHasher, RlpCodec, J>,
 	E: CallExecutor<Block, KeccakHasher, RlpCodec>,
 	Block: BlockT,
+	J: JustificationT
 {
 	fn best_block_header(&self) -> error::Result<<Block as BlockT>::Header> {
 		Client::best_block_header(self)
 	}
 }
 
-impl<B, E, Block> BlockBody<Block> for Client<B, E, Block>
+impl<B, E, Block, J> BlockBody<Block> for Client<B, E, Block, J>
 	where
-		B: backend::Backend<Block, KeccakHasher, RlpCodec>,
+		B: backend::Backend<Block, KeccakHasher, RlpCodec, J>,
 		E: CallExecutor<Block, KeccakHasher, RlpCodec>,
 		Block: BlockT,
+		J: JustificationT
 {
 	fn block_body(&self, id: &BlockId<Block>) -> error::Result<Option<Vec<<Block as BlockT>::Extrinsic>>> {
 		self.body(id)

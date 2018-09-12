@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use primitives::{KeccakHasher, RlpCodec};
 use runtime_primitives::BuildStorage;
-use runtime_primitives::traits::Block as BlockT;
+use runtime_primitives::traits::{Block as BlockT, Justification as JustificationT};
 use state_machine::{CodeExecutor, ExecutionStrategy};
 
 use client::Client;
@@ -38,27 +38,28 @@ use hashdb::Hasher;
 use patricia_trie::NodeCodec;
 
 /// Create an instance of light client blockchain backend.
-pub fn new_light_blockchain<B: BlockT, S: BlockchainStorage<B>, F>(storage: S) -> Arc<Blockchain<S, F>> {
+pub fn new_light_blockchain<B: BlockT, S: BlockchainStorage<B, J>, F, J: JustificationT>(storage: S) -> Arc<Blockchain<S, F>> {
 	Arc::new(Blockchain::new(storage))
 }
 
 /// Create an instance of light client backend.
-pub fn new_light_backend<B: BlockT, S: BlockchainStorage<B>, F: Fetcher<B>>(blockchain: Arc<Blockchain<S, F>>, fetcher: Arc<F>) -> Arc<Backend<S, F>> {
+pub fn new_light_backend<B: BlockT, S: BlockchainStorage<B, J>, F: Fetcher<B>, J: JustificationT>(blockchain: Arc<Blockchain<S, F>>, fetcher: Arc<F>) -> Arc<Backend<S, F>> {
 	blockchain.set_fetcher(Arc::downgrade(&fetcher));
 	Arc::new(Backend::new(blockchain))
 }
 
 /// Create an instance of light client.
-pub fn new_light<B, S, F, GS>(
+pub fn new_light<B, S, F, GS, J>(
 	backend: Arc<Backend<S, F>>,
 	fetcher: Arc<F>,
 	genesis_storage: GS,
-) -> ClientResult<Client<Backend<S, F>, RemoteCallExecutor<Blockchain<S, F>, F, KeccakHasher, RlpCodec>, B>>
+) -> ClientResult<Client<Backend<S, F>, RemoteCallExecutor<Blockchain<S, F>, F, KeccakHasher, RlpCodec, J>, B, J>>
 	where
 		B: BlockT,
-		S: BlockchainStorage<B>,
+		S: BlockchainStorage<B, J>,
 		F: Fetcher<B>,
 		GS: BuildStorage,
+		J: JustificationT
 {
 	let executor = RemoteCallExecutor::new(backend.blockchain().clone(), fetcher);
 	Client::new(backend, executor, genesis_storage, ExecutionStrategy::NativeWhenPossible)

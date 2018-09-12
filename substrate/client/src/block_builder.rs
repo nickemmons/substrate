@@ -19,7 +19,7 @@
 use std::vec::Vec;
 use codec::{Decode, Encode};
 use state_machine::{self, native_when_possible};
-use runtime_primitives::traits::{Header as HeaderT, Hash, Block as BlockT, One, HashFor};
+use runtime_primitives::traits::{Header as HeaderT, Justification as JustificationT, Hash, Block as BlockT, One, HashFor};
 use runtime_primitives::generic::BlockId;
 use {backend, error, Client, CallExecutor};
 use runtime_primitives::{ApplyResult, ApplyOutcome};
@@ -29,14 +29,15 @@ use hashdb::Hasher;
 use rlp::Encodable;
 
 /// Utility for building new (valid) blocks from a stream of extrinsics.
-pub struct BlockBuilder<B, E, Block, H, C>
+pub struct BlockBuilder<B, E, Block, H, C, J>
 where
-	B: backend::Backend<Block, H, C>,
+	B: backend::Backend<Block, H, C, J>,
 	E: CallExecutor<Block, H, C> + Clone,
 	Block: BlockT,
 	H: Hasher,
 	H::Out: Encodable + Ord,
 	C: NodeCodec<H>,
+	J: JustificationT,
 {
 	header: <Block as BlockT>::Header,
 	extrinsics: Vec<<Block as BlockT>::Extrinsic>,
@@ -45,20 +46,21 @@ where
 	changes: state_machine::OverlayedChanges,
 }
 
-impl<B, E, Block> BlockBuilder<B, E, Block, KeccakHasher, RlpCodec>
+impl<B, E, Block, J> BlockBuilder<B, E, Block, KeccakHasher, RlpCodec, J>
 where
-	B: backend::Backend<Block, KeccakHasher, RlpCodec>,
+	B: backend::Backend<Block, KeccakHasher, RlpCodec, J>,
 	E: CallExecutor<Block, KeccakHasher, RlpCodec> + Clone,
 	Block: BlockT,
+	J: JustificationT,
 {
 	/// Create a new instance of builder from the given client, building on the latest block.
-	pub fn new(client: &Client<B, E, Block>) -> error::Result<Self> {
+	pub fn new(client: &Client<B, E, Block, J>) -> error::Result<Self> {
 		client.info().and_then(|i| Self::at_block(&BlockId::Hash(i.chain.best_hash), client))
 	}
 
 	/// Create a new instance of builder from the given client using a particular block's ID to
 	/// build upon.
-	pub fn at_block(block_id: &BlockId<Block>, client: &Client<B, E, Block>) -> error::Result<Self> {
+	pub fn at_block(block_id: &BlockId<Block>, client: &Client<B, E, Block, J>) -> error::Result<Self> {
 		let number = client.block_number_from_id(block_id)?
 			.ok_or_else(|| error::ErrorKind::UnknownBlock(format!("{}", block_id)))?
 			+ One::one();
