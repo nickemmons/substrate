@@ -9,6 +9,7 @@ futures = "0.1.17"
 substrate-codec = { path = "../../codec" }
 substrate-primitives = { path = "../../primitives" }
 substrate-runtime-support = { path = "../../runtime-support" }
+substrate-runtime-io = { path = "../../runtime-io" }
 substrate-runtime-primitives = { path = "../../runtime/primitives" }
 substrate-runtime-consensus-rhd = { path = "../../runtime/consensus/rhd" }
 substrate-runtime-version = { path = "../../runtime/version" }

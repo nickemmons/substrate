@@ -12,7 +12,6 @@ members = [
 	"substrate/executor",
 	"substrate/extrinsic-pool",
 	"substrate/keyring",
-	"substrate/misbehavior-check",
 	"substrate/network",
 	"substrate/primitives",
 	"substrate/rpc",

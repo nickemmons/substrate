@@ -38,8 +38,12 @@ extern crate substrate_codec as codec;
 extern crate substrate_primitives as primitives;
 extern crate substrate_runtime_consensus_rhd as rhd;
 extern crate substrate_runtime_support as runtime_support;
+extern crate substrate_runtime_io as runtime_io;
 extern crate substrate_runtime_primitives as runtime_primitives;
 extern crate substrate_runtime_version as runtime_version;
+#[cfg(test)]
+extern crate substrate_keyring as keyring;
+
 extern crate ed25519;
 extern crate tokio;
 extern crate parking_lot;
@@ -71,6 +75,8 @@ use parking_lot::Mutex;
 
 pub use rhododendron::{InputStreamConcluded, AdvanceRoundReason};
 pub use error::{Error, ErrorKind};
+
+pub mod misbehaviour_check;
 
 // statuses for an agreement
 mod status {
