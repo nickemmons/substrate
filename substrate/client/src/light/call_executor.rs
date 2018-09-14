@@ -63,11 +63,10 @@ impl<B, F, H, C, J> RemoteCallExecutor<B, F, H, C, J> {
 	}
 }
 
-impl<B, F, Block, H, C, J> CallExecutor<Block, H, C> for RemoteCallExecutor<B, F, H, C, J>
+impl<B, F, H, C, J> CallExecutor<J::Block, H, C> for RemoteCallExecutor<B, F, H, C, J>
 where
-	Block: BlockT,
-	B: ChainBackend<Block, J>,
-	F: Fetcher<Block>,
+	B: ChainBackend<J>,
+	F: Fetcher<J::Block>,
 	H: Hasher,
 	H::Out: Ord + Encodable,
 	C: NodeCodec<H>,
@@ -75,7 +74,7 @@ where
 {
 	type Error = ClientError;
 
-	fn call(&self, id: &BlockId<Block>, method: &str, call_data: &[u8]) -> ClientResult<CallResult> {
+	fn call(&self, id: &BlockId<J::Block>, method: &str, call_data: &[u8]) -> ClientResult<CallResult> {
 		let block_hash = match *id {
 			BlockId::Hash(hash) => hash,
 			BlockId::Number(number) => self.blockchain.hash(number)?
@@ -92,7 +91,7 @@ where
 		}).into_future().wait()
 	}
 
-	fn runtime_version(&self, id: &BlockId<Block>) -> ClientResult<RuntimeVersion> {
+	fn runtime_version(&self, id: &BlockId<J::Block>) -> ClientResult<RuntimeVersion> {
 		let call_result = self.call(id, "version", &[])?;
 		RuntimeVersion::decode(&mut call_result.return_data.as_slice())
 			.ok_or_else(|| ClientErrorKind::VersionInvalid.into())

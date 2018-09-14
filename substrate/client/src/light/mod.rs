@@ -38,26 +38,36 @@ use hashdb::Hasher;
 use patricia_trie::NodeCodec;
 
 /// Create an instance of light client blockchain backend.
-pub fn new_light_blockchain<B: BlockT, S: BlockchainStorage<B, J>, F, J: JustificationT>(storage: S) -> Arc<Blockchain<S, F>> {
+pub fn new_light_blockchain<S: BlockchainStorage<J>, F, J: JustificationT>(storage: S) -> Arc<Blockchain<S, F>> {
 	Arc::new(Blockchain::new(storage))
 }
 
 /// Create an instance of light client backend.
-pub fn new_light_backend<B: BlockT, S: BlockchainStorage<B, J>, F: Fetcher<B>, J: JustificationT>(blockchain: Arc<Blockchain<S, F>>, fetcher: Arc<F>) -> Arc<Backend<S, F>> {
+pub fn new_light_backend<S: BlockchainStorage<J>, F: Fetcher<J::Block>, J: JustificationT>(blockchain: Arc<Blockchain<S, F>>, fetcher: Arc<F>) -> Arc<Backend<S, F>> {
 	blockchain.set_fetcher(Arc::downgrade(&fetcher));
 	Arc::new(Backend::new(blockchain))
 }
 
 /// Create an instance of light client.
-pub fn new_light<B, S, F, GS, J>(
+pub fn new_light<S, F, GS, J>(
 	backend: Arc<Backend<S, F>>,
 	fetcher: Arc<F>,
 	genesis_storage: GS,
-) -> ClientResult<Client<Backend<S, F>, RemoteCallExecutor<Blockchain<S, F>, F, KeccakHasher, RlpCodec, J>, B, J>>
+) -> ClientResult<
+		Client<
+			Backend<S, F>,
+			RemoteCallExecutor<Blockchain<S, F>,
+			F,
+			KeccakHasher,
+			RlpCodec,
+			J
+		>,
+	J
+	>
+>
 	where
-		B: BlockT,
-		S: BlockchainStorage<B, J>,
-		F: Fetcher<B>,
+		S: BlockchainStorage<J>,
+		F: Fetcher<J::Block>,
 		GS: BuildStorage,
 		J: JustificationT
 {

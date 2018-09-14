@@ -375,7 +375,11 @@ pub trait Header: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'stat
 
 /// Justification for a given Block
 pub trait Justification: Clone + Send + Sync + Codec + Eq + MaybeSerializeDebug + 'static {
+	type Block: Block;
+	type Confirmed;
 
+	fn confirm(&self, block: Self::Block, authorities: &[substrate_primitives::AuthorityId])
+		-> Result<Self::Confirmed, &'static str>;
 }
 
 /// Something which fulfills the abstract idea of a Substrate block. It has types for an

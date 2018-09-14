@@ -58,7 +58,7 @@ use codec::{Encode, Decode};
 use runtime_primitives::traits::{BlindCheckable, BlakeTwo256};
 use runtime_primitives::Ed25519Signature;
 use runtime_version::RuntimeVersion;
-pub use primitives::hash::H256;
+pub use primitives::{hash::H256, AuthorityId};
 
 /// Test runtime version.
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -117,6 +117,27 @@ pub type DigestItem = runtime_primitives::generic::DigestItem<u64>;
 pub type Digest = runtime_primitives::generic::Digest<DigestItem>;
 /// A test block.
 pub type Block = runtime_primitives::generic::Block<Header, Extrinsic>;
+/// A test Justification
+
+#[derive(PartialEq, Eq, Clone, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
+pub struct Justification(pub Hash, pub Vec<AuthorityId>);
+
+impl runtime_primitives::traits::Justification for Justification {
+	type Confirmed = ();
+	type Block = Block;
+	fn confirm(&self, block: Self::Block, authorities: &[AuthorityId])
+	-> Result<Self::Confirmed, &'static str> {
+		if block.header.hash() == self.0 && self.1 == authorities {
+			Ok(())	
+		} else {
+			Err("Hash and Authorities don't match up")
+		}
+	}
+}
+// pub type Justification = runtime_primitives::generic::Justification<InnerJustification>;
 /// A test block's header.
 pub type Header = runtime_primitives::generic::Header<BlockNumber, BlakeTwo256, DigestItem>;
 

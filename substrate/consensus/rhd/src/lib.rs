@@ -34,6 +34,7 @@
 
 pub mod error;
 
+
 extern crate substrate_codec as codec;
 extern crate substrate_primitives as primitives;
 extern crate substrate_runtime_consensus_rhd as rhd;
@@ -57,14 +58,20 @@ extern crate futures;
 #[macro_use]
 extern crate error_chain;
 
+#[macro_use]
+extern crate serde;
+
+#[macro_use]
+extern crate substrate_codec_derive;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Instant, Duration};
 
 use codec::Encode;
 use ed25519::LocalizedSignature;
-use runtime_primitives::generic::{BlockId, Justification as JustificationG};
-use runtime_primitives::traits::{Block, Header};
+use runtime_primitives::generic::{BlockId};
+use runtime_primitives::traits::{Block, Header, Justification as JustificationT};
 use rhd::messages::{Message as PrimitiveMessage, Action as PrimitiveAction, Justification as PrimitiveJustification};
 use primitives::AuthorityId;
 
@@ -75,6 +82,8 @@ use parking_lot::Mutex;
 
 pub use rhododendron::{InputStreamConcluded, AdvanceRoundReason};
 pub use error::{Error, ErrorKind};
+
+#[cfg(feature = "std")] use serde::de::DeserializeOwned;
 
 pub mod misbehaviour_check;
 
@@ -97,11 +106,42 @@ pub type LocalizedMessage<B> = rhododendron::LocalizedMessage<
 	LocalizedSignature
 >;
 
+
+#[derive(Clone, PartialEq, Eq, Encode, Decode)]
+#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
+#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
+#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
+#[serde(bound = "B: DeserializeOwned")]
+pub struct Justification<B: Block>(PrimitiveJustification<<B as Block>::Hash>);
+
+
+impl<B> JustificationT for Justification<B>
+where B: Block {
+	type Block = B;
+	type Confirmed = ();
+
+	fn confirm(&self, block: Self::Block, authorities: &[AuthorityId])
+		-> Result<Self::Confirmed, &'static str>
+	{
+		let just = UncheckedJustification::from(self.0.clone());
+		let message = Encode::encode(&PrimitiveMessage::<B, _> {
+			parent: block.header().parent_hash().clone(),
+			action: PrimitiveAction::Commit(
+				just.0.round_number as u32,
+					just.0.digest.clone()),
+		});
+
+		check_justification_signed_message(authorities, &message[..], just)
+		.map(|_| ())
+		.map_err(|_| "Justification could not be confirmed")
+	}
+
+}
 /// Justification of some hash.
-pub type Justification<H> = JustificationG<rhododendron::Justification<H, LocalizedSignature>>;
+pub struct RhdJustification<H>(rhododendron::Justification<H, LocalizedSignature>);
 
 /// Justification of a prepare message.
-pub type PrepareJustification<H> = JustificationG<rhododendron::PrepareJustification<H, LocalizedSignature>>;
+pub struct PrepareJustification<H>(rhododendron::PrepareJustification<H, LocalizedSignature>);
 
 /// Unchecked justification.
 pub struct UncheckedJustification<H>(rhododendron::UncheckedJustification<H, LocalizedSignature>);
@@ -114,6 +154,22 @@ impl<H> UncheckedJustification<H> {
 			signatures,
 			round_number,
 		})
+	}
+}
+
+impl<H> Into<PrimitiveJustification<H>> for RhdJustification<H> {
+	fn into(self) -> PrimitiveJustification<H> {
+		let p : PrimitiveJustification<H> = UncheckedJustification(self.0.uncheck()).into();
+		p
+	}
+}
+
+
+impl<B> Into<Justification<B>> for RhdJustification<<B as Block>::Hash>
+where B: Block {
+	fn into(self) -> Justification<B> {
+		let p : PrimitiveJustification<<B as Block>::Hash> = UncheckedJustification(self.0.uncheck()).into();
+		Justification(p)
 	}
 }
 
@@ -205,7 +261,7 @@ pub trait Proposer<B: Block> {
 /// Block import trait.
 pub trait BlockImport<B: Block> {
 	/// Import a block alongside its corresponding justification.
-	fn import_block(&self, block: B, justification: Justification<B::Hash>, authorities: &[AuthorityId]) -> bool;
+	fn import_block(&self, block: B, justification: Justification<B>, authorities: &[AuthorityId]) -> bool;
 }
 
 /// Trait for getting the authorities at a given block.
@@ -394,7 +450,7 @@ impl<B, P, I, InStream, OutSink> Future for BftFuture<B, P, I, InStream, OutSink
 
 			let import_ok = self.import.import_block(
 				justified_block,
-				JustificationG::wrap(committed.justification),
+				Justification(RhdJustification(committed.justification).into()),
 				&self.inner.context().authorities
 			);
 
@@ -625,7 +681,7 @@ pub fn bft_threshold(n: usize) -> usize {
 }
 
 fn check_justification_signed_message<H>(authorities: &[AuthorityId], message: &[u8], just: UncheckedJustification<H>)
-	-> Result<Justification<H>, UncheckedJustification<H>>
+	-> Result<RhdJustification<H>, UncheckedJustification<H>>
 {
 	// TODO: return additional error information.
 	just.0.check(authorities.len() - max_faulty_of(authorities.len()), |_, _, sig| {
@@ -637,15 +693,15 @@ fn check_justification_signed_message<H>(authorities: &[AuthorityId], message: &
 		} else {
 			None
 		}
-	}).map(JustificationG::wrap).map_err(UncheckedJustification)
+	}).map(RhdJustification).map_err(UncheckedJustification)
 }
 
 /// Check a full justification for a header hash.
 /// Provide all valid authorities.
 ///
 /// On failure, returns the justification back.
-pub fn check_justification<B: Block>(authorities: &[AuthorityId], parent: B::Hash, just: UncheckedJustification<B::Hash>)
-	-> Result<Justification<B::Hash>, UncheckedJustification<B::Hash>>
+pub fn check_justification<B: Block, H>(authorities: &[AuthorityId], parent: B::Hash, just: UncheckedJustification<B::Hash>)
+	-> Result<RhdJustification<B::Hash>, UncheckedJustification<B::Hash>>
 {
 	let message = Encode::encode(&PrimitiveMessage::<B, _> {
 		parent,
@@ -667,7 +723,7 @@ pub fn check_prepare_justification<B: Block>(authorities: &[AuthorityId], parent
 		action: PrimitiveAction::Prepare(just.0.round_number as u32, just.0.digest.clone()),
 	});
 
-	check_justification_signed_message(authorities, &message[..], just)
+	check_justification_signed_message(authorities, &message[..], just).map(|e| PrepareJustification(e.0))
 }
 
 /// Check proposal message signatures and authority.
@@ -788,7 +844,7 @@ mod tests {
 	}
 
 	impl BlockImport<TestBlock> for FakeClient {
-		fn import_block(&self, block: TestBlock, _justification: Justification<H256>, _authorities: &[AuthorityId]) -> bool {
+		fn import_block(&self, block: TestBlock, _justification: Justification<TestBlock>, _authorities: &[AuthorityId]) -> bool {
 			assert!(self.imported_heights.lock().insert(block.header.number));
 			true
 		}

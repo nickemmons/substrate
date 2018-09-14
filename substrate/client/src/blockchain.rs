@@ -23,33 +23,33 @@ use runtime_primitives::generic::BlockId;
 use error::{ErrorKind, Result};
 
 /// Blockchain database header backend. Does not perform any validation.
-pub trait HeaderBackend<Block: BlockT, J: JustificationT>: Send + Sync {
+pub trait HeaderBackend<J: JustificationT>: Send + Sync {
 	/// Get block header. Returns `None` if block is not found.
-	fn header(&self, id: BlockId<Block>) -> Result<Option<Block::Header>>;
+	fn header(&self, id: BlockId<J::Block>) -> Result<Option<<J::Block as BlockT>::Header>>;
 	/// Get blockchain info.
-	fn info(&self) -> Result<Info<Block>>;
+	fn info(&self) -> Result<Info<J::Block>>;
 	/// Get block status.
-	fn status(&self, id: BlockId<Block>) -> Result<BlockStatus>;
+	fn status(&self, id: BlockId<J::Block>) -> Result<BlockStatus>;
 	/// Get block number by hash. Returns `None` if the header is not in the chain.
-	fn number(&self, hash: Block::Hash) -> Result<Option<<<Block as BlockT>::Header as HeaderT>::Number>>;
+	fn number(&self, hash: <J::Block as BlockT>::Hash) -> Result<Option<<<J::Block as BlockT>::Header as HeaderT>::Number>>;
 	/// Get block hash by number. Returns `None` if the header is not in the chain.
-	fn hash(&self, number: NumberFor<Block>) -> Result<Option<Block::Hash>>;
+	fn hash(&self, number: NumberFor<J::Block>) -> Result<Option<<J::Block as BlockT>::Hash>>;
 
 	/// Get block header. Returns `UnknownBlock` error if block is not found.
-	fn expect_header(&self, id: BlockId<Block>) -> Result<Block::Header> {
+	fn expect_header(&self, id: BlockId<J::Block>) -> Result<<J::Block as BlockT>::Header> {
 		self.header(id)?.ok_or_else(|| ErrorKind::UnknownBlock(format!("{}", id)).into())
 	}
 }
 
 /// Blockchain database backend. Does not perform any validation.
-pub trait Backend<Block: BlockT, J: JustificationT>: HeaderBackend<Block, J> {
+pub trait Backend<J: JustificationT>: HeaderBackend<J> {
 	/// Get block body. Returns `None` if block is not found.
-	fn body(&self, id: BlockId<Block>) -> Result<Option<Vec<<Block as BlockT>::Extrinsic>>>;
+	fn body(&self, id: BlockId<J::Block>) -> Result<Option<Vec<<J::Block as BlockT>::Extrinsic>>>;
 	/// Get block justification. Returns `None` if justification does not exist.
-	fn justification(&self, id: BlockId<Block>) -> Result<Option<J>>;
+	fn justification(&self, id: BlockId<J::Block>) -> Result<Option<J>>;
 
 	/// Returns data cache reference, if it is enabled on this backend.
-	fn cache(&self) -> Option<&Cache<Block>>;
+	fn cache(&self) -> Option<&Cache<J::Block>>;
 }
 
 /// Blockchain optional data cache.

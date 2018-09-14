@@ -117,17 +117,16 @@ impl<B, E, J> Clone for LocalCallExecutor<B, E, J> where E: Clone {
 	}
 }
 
-impl<B, E, Block, J> CallExecutor<Block, KeccakHasher, RlpCodec> for LocalCallExecutor<B, E, J>
+impl<B, E, J> CallExecutor<J::Block, KeccakHasher, RlpCodec> for LocalCallExecutor<B, E, J>
 where
-	B: backend::LocalBackend<Block, KeccakHasher, RlpCodec, J>,
+	B: backend::LocalBackend<KeccakHasher, RlpCodec, J>,
 	E: CodeExecutor<KeccakHasher> + RuntimeInfo,
-	Block: BlockT,
 	J: JustificationT
 {
 	type Error = E::Error;
 
 	fn call(&self,
-		id: &BlockId<Block>,
+		id: &BlockId<J::Block>,
 		method: &str,
 		call_data: &[u8],
 	) -> error::Result<CallResult> {
@@ -142,7 +141,7 @@ where
 		Ok(CallResult { return_data, changes })
 	}
 
-	fn runtime_version(&self, id: &BlockId<Block>) -> error::Result<RuntimeVersion> {
+	fn runtime_version(&self, id: &BlockId<J::Block>) -> error::Result<RuntimeVersion> {
 		let mut overlay = OverlayedChanges::default();
 		let state = self.backend.state_at(*id)?;
 		use state_machine::Backend;

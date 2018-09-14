@@ -52,11 +52,11 @@ pub struct ImportOperation<Block: BlockT, S, F> {
 }
 
 /// On-demand state.
-pub struct OnDemandState<Block: BlockT, S, F, J> {
+pub struct OnDemandState<S, F, J: JustificationT> {
 	fetcher: Weak<F>,
 	blockchain: Weak<Blockchain<S, F>>,
-	block: Block::Hash,
-	cached_header: RwLock<Option<Block::Header>>,
+	block: <<J as JustificationT>::Block as BlockT>::Hash,
+	cached_header: RwLock<Option<<<J as JustificationT>::Block as BlockT>::Header>>,
 	_justification:  ::std::marker::PhantomData<J>
 }
 
@@ -72,19 +72,18 @@ impl<S, F> Backend<S, F> {
 	}
 }
 
-impl<S, F, Block, H, C, J> ClientBackend<Block, H, C, J> for Backend<S, F> where
-	Block: BlockT,
-	S: BlockchainStorage<Block, J>,
-	F: Fetcher<Block>,
+impl<S, F, H, C, J> ClientBackend<H, C, J> for Backend<S, F> where
+	S: BlockchainStorage<J>,
+	F: Fetcher<J::Block>,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,
 {
-	type BlockImportOperation = ImportOperation<Block, S, F>;
+	type BlockImportOperation = ImportOperation<J::Block, S, F>;
 	type Blockchain = Blockchain<S, F>;
-	type State = OnDemandState<Block, S, F, J>;
+	type State = OnDemandState<S, F, J>;
 
-	fn begin_operation(&self, _block: BlockId<Block>) -> ClientResult<Self::BlockImportOperation> {
+	fn begin_operation(&self, _block: BlockId<J::Block>) -> ClientResult<Self::BlockImportOperation> {
 		Ok(ImportOperation {
 			is_new_best: false,
 			header: None,
@@ -102,7 +101,7 @@ impl<S, F, Block, H, C, J> ClientBackend<Block, H, C, J> for Backend<S, F> where
 		&self.blockchain
 	}
 
-	fn state_at(&self, block: BlockId<Block>) -> ClientResult<Self::State> {
+	fn state_at(&self, block: BlockId<J::Block>) -> ClientResult<Self::State> {
 		let block_hash = match block {
 			BlockId::Hash(h) => Some(h),
 			BlockId::Number(n) => self.blockchain.hash(n).unwrap_or_default(),
@@ -117,31 +116,29 @@ impl<S, F, Block, H, C, J> ClientBackend<Block, H, C, J> for Backend<S, F> where
 		})
 	}
 
-	fn revert(&self, _n: NumberFor<Block>) -> ClientResult<NumberFor<Block>> {
+	fn revert(&self, _n: NumberFor<J::Block>) -> ClientResult<NumberFor<J::Block>> {
 		unimplemented!()
 	}
 }
 
-impl<S, F, Block, H, C, J> RemoteBackend<Block, H, C, J> for Backend<S, F>
+impl<S, F, H, C, J> RemoteBackend<H, C, J> for Backend<S, F>
 where
-	Block: BlockT,
-	S: BlockchainStorage<Block, J>,
-	F: Fetcher<Block>,
+	S: BlockchainStorage<J>,
+	F: Fetcher<J::Block>,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,
 {}
 
-impl<S, F, Block, H, C, J> BlockImportOperation<Block, H, C, J> for ImportOperation<Block, S, F>
+impl<S, F, H, C, J> BlockImportOperation<H, C, J> for ImportOperation<J::Block, S, F>
 where
-	Block: BlockT,
-	F: Fetcher<Block>,
-	S: BlockchainStorage<Block, J>,
+	F: Fetcher<J::Block>,
+	S: BlockchainStorage<J>,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,
 {
-	type State = OnDemandState<Block, S, F, J>;
+	type State = OnDemandState<S, F, J>;
 
 	fn state(&self) -> ClientResult<Option<&Self::State>> {
 		// None means 'locally-stateless' backend
@@ -150,8 +147,8 @@ where
 
 	fn set_block_data(
 		&mut self,
-		header: Block::Header,
-		_body: Option<Vec<Block::Extrinsic>>,
+		header: <<J as JustificationT>::Block as BlockT>::Header,
+		_body: Option<Vec<<<J as JustificationT>::Block as BlockT>::Extrinsic>>,
 		_justification: Option<J>,
 		is_new_best: bool
 	) -> ClientResult<()> {
@@ -175,11 +172,10 @@ where
 	}
 }
 
-impl<Block, S, F, H, C, J> StateBackend<H, C> for OnDemandState<Block, S, F, J>
+impl<S, F, H, C, J> StateBackend<H, C> for OnDemandState<S, F, J>
 	where
-		Block: BlockT,
-		S: BlockchainStorage<Block, J>,
-		F: Fetcher<Block>,
+		S: BlockchainStorage<J>,
+		F: Fetcher<J::Block>,
 		H: Hasher,
 		C: NodeCodec<H>,
 		J: JustificationT,
@@ -222,10 +218,9 @@ impl<Block, S, F, H, C, J> StateBackend<H, C> for OnDemandState<Block, S, F, J>
 	}
 }
 
-impl<Block, S, F, H, C, J> TryIntoStateTrieBackend<H, C> for OnDemandState<Block, S, F, J>
+impl<S, F, H, C, J> TryIntoStateTrieBackend<H, C> for OnDemandState<S, F, J>
 where
-	Block: BlockT,
-	F: Fetcher<Block>,
+	F: Fetcher<J::Block>,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT

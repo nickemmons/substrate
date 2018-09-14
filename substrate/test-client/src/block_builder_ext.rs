@@ -30,7 +30,7 @@ pub trait BlockBuilderExt {
 	fn push_transfer(&mut self, transfer: runtime::Transfer) -> Result<(), client::error::Error>;
 }
 
-impl BlockBuilderExt for client::block_builder::BlockBuilder<Backend, Executor, runtime::Block, KeccakHasher, RlpCodec> {
+impl BlockBuilderExt for client::block_builder::BlockBuilder<Backend, Executor, KeccakHasher, RlpCodec, runtime::Justification> {
 	fn push_transfer(&mut self, transfer: runtime::Transfer) -> Result<(), client::error::Error> {
 		self.push(sign_tx(transfer))
 	}

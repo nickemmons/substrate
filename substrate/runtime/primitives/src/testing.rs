@@ -22,7 +22,7 @@ use codec::Codec;
 use runtime_support::Dispatchable;
 use traits::{self, Checkable, Applyable, BlakeTwo256, Justification as JustificationT};
 
-pub use substrate_primitives::H256;
+pub use substrate_primitives::{H256, AuthorityId};
 
 #[derive(Default, PartialEq, Eq, Clone, Serialize, Deserialize, Debug, Encode, Decode)]
 pub struct Digest {
@@ -101,8 +101,18 @@ pub struct Block<Xt> {
 }
 
 #[derive(PartialEq, Eq, Clone, Serialize, Deserialize, Debug, Encode, Decode)]
-pub struct Justification {}
-impl JustificationT for Justification {}
+pub struct Justification<Xt> (::std::marker::PhantomData<Xt>);
+impl<Xt> JustificationT for Justification<Xt>
+where Xt: 'static + Codec + Sized + Send + Sync + Serialize + DeserializeOwned + Clone + Eq + Debug
+ {
+	type Confirmed = bool;
+	type Block = Block<Xt>;
+
+	fn confirm(&self, _block: Self::Block, _authorities: &[AuthorityId])
+	-> Result<Self::Confirmed, &'static str> {
+		Err("Not implemented")
+	}
+}
 
 impl<Xt: 'static + Codec + Sized + Send + Sync + Serialize + DeserializeOwned + Clone + Eq + Debug> traits::Block for Block<Xt> {
 	type Extrinsic = Xt;

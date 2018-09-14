@@ -21,7 +21,7 @@ use std::fmt;
 
 use rstd::prelude::*;
 use codec::Codec;
-use traits::{self, Member, Block as BlockT, Header as HeaderT, Justification as JustificationT};
+use traits::{self, Member, Block as BlockT, Header as HeaderT};
 
 /// Something to identify a block.
 #[derive(PartialEq, Eq, Clone)]
@@ -90,26 +90,6 @@ where
 		Block { header, extrinsics }
 	}
 }
-
-/// Abstraction over a justification
-#[derive(PartialEq, Eq, Clone, Encode, Decode)]
-#[cfg_attr(feature = "std", derive(Debug, Serialize, Deserialize))]
-#[cfg_attr(feature = "std", serde(rename_all = "camelCase"))]
-#[cfg_attr(feature = "std", serde(deny_unknown_fields))]
-pub struct Justification<I> (I);
-
-impl<I> Justification<I> {
-	pub fn into_inner(self) -> I {
-		self.0
-	}
-	pub fn wrap(inner: I) -> Self {
-		Justification(inner)
-	}
-}
-
-impl<I> JustificationT for Justification<I> 
-where I: Codec + Member
-{}
 
 /// Abstraction over a substrate block and justification.
 #[derive(PartialEq, Eq, Clone, Encode, Decode)]

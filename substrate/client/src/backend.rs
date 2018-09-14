@@ -25,9 +25,8 @@ use patricia_trie::NodeCodec;
 use hashdb::Hasher;
 
 /// Block insertion operation. Keeps hold if the inserted block state and data.
-pub trait BlockImportOperation<Block, H, C, J>
+pub trait BlockImportOperation<H, C, J>
 where
-	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,
@@ -40,8 +39,8 @@ where
 	/// Append block data to the transaction.
 	fn set_block_data(
 		&mut self,
-		header: Block::Header,
-		body: Option<Vec<Block::Extrinsic>>,
+		header: <J::Block as BlockT>::Header,
+		body: Option<Vec<<J::Block as BlockT>::Extrinsic>>,
 		justification: Option<J>,
 		is_new_best: bool
 	) -> error::Result<()>;
@@ -63,47 +62,44 @@ where
 ///
 /// The same applies for live `BlockImportOperation`s: while an import operation building on a parent `P`
 /// is alive, the state for `P` should not be pruned.
-pub trait Backend<Block, H, C, J>: Send + Sync
+pub trait Backend<H, C, J>: Send + Sync
 where
-	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,
 {
 	/// Associated block insertion operation type.
-	type BlockImportOperation: BlockImportOperation<Block, H, C, J>;
+	type BlockImportOperation: BlockImportOperation<H, C, J>;
 	/// Associated blockchain backend type.
-	type Blockchain: ::blockchain::Backend<Block, J>;
+	type Blockchain: ::blockchain::Backend<J>;
 	/// Associated state backend type.
 	type State: StateBackend<H, C>;
 
 	/// Begin a new block insertion transaction with given parent block id.
 	/// When constructing the genesis, this is called with all-zero hash.
-	fn begin_operation(&self, block: BlockId<Block>) -> error::Result<Self::BlockImportOperation>;
+	fn begin_operation(&self, block: BlockId<J::Block>) -> error::Result<Self::BlockImportOperation>;
 	/// Commit block insertion.
 	fn commit_operation(&self, transaction: Self::BlockImportOperation) -> error::Result<()>;
 	/// Returns reference to blockchain backend.
 	fn blockchain(&self) -> &Self::Blockchain;
 	/// Returns state backend with post-state of given block.
-	fn state_at(&self, block: BlockId<Block>) -> error::Result<Self::State>;
+	fn state_at(&self, block: BlockId<J::Block>) -> error::Result<Self::State>;
 	/// Attempts to revert the chain by `n` blocks. Returns the number of blocks that were
 	/// successfully reverted.
-	fn revert(&self, n: NumberFor<Block>) -> error::Result<NumberFor<Block>>;
+	fn revert(&self, n: NumberFor<J::Block>) -> error::Result<NumberFor<J::Block>>;
 }
 
 /// Mark for all Backend implementations, that are making use of state data, stored locally.
-pub trait LocalBackend<Block, H, C, J>: Backend<Block, H, C, J>
+pub trait LocalBackend<H, C, J>: Backend<H, C, J>
 where
-	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,
 {}
 
 /// Mark for all Backend implementations, that are fetching required state data from remote nodes.
-pub trait RemoteBackend<Block, H, C, J>: Backend<Block, H, C, J>
+pub trait RemoteBackend<H, C, J>: Backend<H, C, J>
 where
-	Block: BlockT,
 	H: Hasher,
 	C: NodeCodec<H>,
 	J: JustificationT,

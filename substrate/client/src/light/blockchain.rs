@@ -32,20 +32,21 @@ use error::{ErrorKind as ClientErrorKind, Result as ClientResult};
 use light::fetcher::{Fetcher, RemoteHeaderRequest};
 
 /// Light client blockchain storage.
-pub trait Storage<Block: BlockT, J: JustificationT>: BlockchainHeaderBackend<Block, J> {
+pub trait Storage<J: JustificationT>: BlockchainHeaderBackend<J> {
 	/// Store new header.
 	fn import_header(
 		&self,
 		is_new_best: bool,
-		header: Block::Header,
+		header: <<J as JustificationT>::Block as BlockT>::Header,
 		authorities: Option<Vec<AuthorityId>>
 	) -> ClientResult<()>;
 
 	/// Get CHT root for given block. Fails if the block is not pruned (not a part of any CHT).
-	fn cht_root(&self, cht_size: u64, block: NumberFor<Block>) -> ClientResult<Block::Hash>;
+	fn cht_root(&self, cht_size: u64, block: NumberFor<J::Block>)
+		-> ClientResult<<J::Block as BlockT>::Hash>;
 
 	/// Get storage cache.
-	fn cache(&self) -> Option<&BlockchainCache<Block>>;
+	fn cache(&self) -> Option<&BlockchainCache<J::Block>>;
 }
 
 /// Light client blockchain.
@@ -79,14 +80,13 @@ impl<S, F> Blockchain<S, F> {
 	}
 }
 
-impl<S, F, Block, J> BlockchainHeaderBackend<Block, J> for Blockchain<S, F>
+impl<S, F, J> BlockchainHeaderBackend<J> for Blockchain<S, F>
 where
-	Block: BlockT,
-	S: Storage<Block, J>,
-	F: Fetcher<Block>,
+	S: Storage<J>,
+	F: Fetcher<J::Block>,
 	J: JustificationT,
 {
-	fn header(&self, id: BlockId<Block>) -> ClientResult<Option<Block::Header>> {
+	fn header(&self, id: BlockId<J::Block>) -> ClientResult<Option<<J::Block as BlockT>::Header>> {
 		match self.storage.header(id)? {
 			Some(header) => Ok(Some(header)),
 			None => {
@@ -115,40 +115,39 @@ where
 		}
 	}
 
-	fn info(&self) -> ClientResult<BlockchainInfo<Block>> {
+	fn info(&self) -> ClientResult<BlockchainInfo<J::Block>> {
 		self.storage.info()
 	}
 
-	fn status(&self, id: BlockId<Block>) -> ClientResult<BlockStatus> {
+	fn status(&self, id: BlockId<J::Block>) -> ClientResult<BlockStatus> {
 		self.storage.status(id)
 	}
 
-	fn number(&self, hash: Block::Hash) -> ClientResult<Option<NumberFor<Block>>> {
+	fn number(&self, hash: <J::Block as BlockT>::Hash) -> ClientResult<Option<NumberFor<J::Block>>> {
 		self.storage.number(hash)
 	}
 
-	fn hash(&self, number: <<Block as BlockT>::Header as HeaderT>::Number) -> ClientResult<Option<Block::Hash>> {
+	fn hash(&self, number: <<J::Block as BlockT>::Header as HeaderT>::Number) -> ClientResult<Option<<<J as JustificationT>::Block as BlockT>::Hash>> {
 		self.storage.hash(number)
 	}
 }
 
-impl<S, F, Block, J> BlockchainBackend<Block, J> for Blockchain<S, F>
+impl<S, F, J> BlockchainBackend<J> for Blockchain<S, F>
 where
-	Block: BlockT,
-	S: Storage<Block, J>,
-	F: Fetcher<Block>,
+	S: Storage<J>,
+	F: Fetcher<J::Block>,
 	J: JustificationT,
 {
-	fn body(&self, _id: BlockId<Block>) -> ClientResult<Option<Vec<Block::Extrinsic>>> {
+	fn body(&self, _id: BlockId<J::Block>) -> ClientResult<Option<Vec<<J::Block as BlockT>::Extrinsic>>> {
 		// TODO [light]: fetch from remote node
 		Ok(None)
 	}
 
-	fn justification(&self, _id: BlockId<Block>) -> ClientResult<Option<J>> {
+	fn justification(&self, _id: BlockId<J::Block>) -> ClientResult<Option<J>> {
 		Ok(None)
 	}
 
-	fn cache(&self) -> Option<&BlockchainCache<Block>> {
+	fn cache(&self) -> Option<&BlockchainCache<J::Block>> {
 		self.storage.cache()
 	}
 }

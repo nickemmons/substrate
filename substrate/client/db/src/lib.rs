@@ -54,9 +54,9 @@ use kvdb::{KeyValueDB, DBTransaction};
 use memorydb::MemoryDB;
 use parking_lot::RwLock;
 use primitives::{H256, AuthorityId, KeccakHasher, RlpCodec};
-use runtime_primitives::generic::BlockId;
-use runtime_primitives::bft::Justification;
-use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, As, Hash, HashFor, NumberFor, Zero};
+use runtime_primitives::generic::{BlockId, Justification};
+use runtime_primitives::traits::{Block as BlockT, Header as HeaderT, 
+	Justification as JustificationT, As, Hash, HashFor, NumberFor, Zero};
 use runtime_primitives::BuildStorage;
 use state_machine::backend::Backend as StateBackend;
 use executor::RuntimeInfo;
@@ -82,16 +82,23 @@ pub struct DatabaseSettings {
 }
 
 /// Create an instance of db-backed client.
-pub fn new_client<E, S, Block>(
+pub fn new_client<E, S, Block, J>(
 	settings: DatabaseSettings,
 	executor: E,
 	genesis_storage: S,
 	execution_strategy: ExecutionStrategy,
-) -> Result<client::Client<Backend<Block>, client::LocalCallExecutor<Backend<Block>, E>, Block>, client::error::Error>
-	where
-		Block: BlockT,
-		E: CodeExecutor<KeccakHasher> + RuntimeInfo,
-		S: BuildStorage,
+) -> Result<
+	client::Client<
+		Backend<Block>,
+		client::LocalCallExecutor<Backend<Block>, E, J>,
+		Block,
+		J
+	>, client::error::Error>
+where
+	Block: BlockT,
+	E: CodeExecutor<KeccakHasher> + RuntimeInfo,
+	S: BuildStorage,
+	J: JustificationT,
 {
 	let backend = Arc::new(Backend::new(settings, FINALIZATION_WINDOW)?);
 	let executor = client::LocalCallExecutor::new(backend.clone(), executor);
@@ -153,7 +160,7 @@ impl<Block: BlockT> BlockchainDb<Block> {
 	}
 }
 
-impl<Block: BlockT> client::blockchain::HeaderBackend<Block> for BlockchainDb<Block> {
+impl<Block: BlockT, J: JustificationT> client::blockchain::HeaderBackend<Block, J> for BlockchainDb<Block> {
 	fn header(&self, id: BlockId<Block>) -> Result<Option<Block::Header>, client::error::Error> {
 		match read_db(&*self.db, columns::BLOCK_INDEX, columns::HEADER, id)? {
 			Some(header) => match Block::Header::decode(&mut &header[..]) {
@@ -199,7 +206,7 @@ impl<Block: BlockT> client::blockchain::HeaderBackend<Block> for BlockchainDb<Bl
 	}
 }
 
-impl<Block: BlockT> client::blockchain::Backend<Block> for BlockchainDb<Block> {
+impl<Block: BlockT, J: JustificationT> client::blockchain::Backend<Block, J> for BlockchainDb<Block> {
 	fn body(&self, id: BlockId<Block>) -> Result<Option<Vec<Block::Extrinsic>>, client::error::Error> {
 		match read_db(&*self.db, columns::BLOCK_INDEX, columns::BODY, id)? {
 			Some(body) => match Decode::decode(&mut &body[..]) {
@@ -232,9 +239,11 @@ pub struct BlockImportOperation<Block: BlockT, H: Hasher> {
 	pending_block: Option<PendingBlock<Block>>,
 }
 
-impl<Block> client::backend::BlockImportOperation<Block, KeccakHasher, RlpCodec>
+impl<Block, J> client::backend::BlockImportOperation<Block, KeccakHasher, RlpCodec, J>
 for BlockImportOperation<Block, KeccakHasher>
-where Block: BlockT,
+where
+	Block: BlockT,
+	J: JustificationT,
 {
 	type State = DbState;
 
@@ -242,7 +251,9 @@ where Block: BlockT,
 		Ok(Some(&self.old_state))
 	}
 
-	fn set_block_data(&mut self, header: Block::Header, body: Option<Vec<Block::Extrinsic>>, justification: Option<rhd::Justification<Block::Hash>>, is_best: bool) -> Result<(), client::error::Error> {
+	fn set_block_data(&mut self, header: Block::Header, body: Option<Vec<Block::Extrinsic>>,
+			justification: Option<J>, is_best: bool)
+	-> Result<(), client::error::Error> {
 		assert!(self.pending_block.is_none(), "Only one block per operation is allowed");
 		self.pending_block = Some(PendingBlock {
 			header,
@@ -349,7 +360,11 @@ fn apply_state_commit(transaction: &mut DBTransaction, commit: state_db::CommitS
 	}
 }
 
-impl<Block> client::backend::Backend<Block, KeccakHasher, RlpCodec> for Backend<Block> where Block: BlockT {
+impl<Block, J> client::backend::Backend<Block, KeccakHasher, RlpCodec, J> for Backend<Block>
+where
+	Block: BlockT,
+	J: JustificationT,
+{
 	type BlockImportOperation = BlockImportOperation<Block, KeccakHasher>;
 	type Blockchain = BlockchainDb<Block>;
 	type State = DbState;
@@ -474,8 +489,8 @@ impl<Block> client::backend::Backend<Block, KeccakHasher, RlpCodec> for Backend<
 	}
 }
 
-impl<Block> client::backend::LocalBackend<Block, KeccakHasher, RlpCodec> for Backend<Block>
-where Block: BlockT {}
+impl<Block, J> client::backend::LocalBackend<Block, KeccakHasher, RlpCodec, J> for Backend<Block>
+where Block: BlockT, J: JustificationT {}
 
 #[cfg(test)]
 mod tests {

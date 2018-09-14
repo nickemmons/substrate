@@ -1,6 +1,7 @@
 
 use runtime_primitives::traits::{Block as BlockT, Header as HeaderT};
 
+
 /// Type alias for using the localized bft message type using block type parameters.
 pub type LocalizedBftMessage<B> = generic::LocalizedBftMessage<
 	B,

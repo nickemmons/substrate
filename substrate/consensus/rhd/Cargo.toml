@@ -7,6 +7,7 @@ description = "Rhododendron Round-Based consensus-algorithm for substrate"
 [dependencies]
 futures = "0.1.17"
 substrate-codec = { path = "../../codec" }
+substrate-codec-derive = { path = "../../codec/derive" }
 substrate-primitives = { path = "../../primitives" }
 substrate-runtime-support = { path = "../../runtime-support" }
 substrate-runtime-io = { path = "../../runtime-io" }
@@ -19,7 +20,23 @@ parking_lot = "0.4"
 error-chain = "0.12"
 log = "0.3"
 rhododendron = "0.3"
+serde = { version = "1.0", features = ["derive"]}
 
 [dev-dependencies]
 substrate-keyring = { path = "../../keyring" }
 substrate-executor = { path = "../../executor" }
+
+
+[features]
+default = ["std"]
+std = [
+	"serde/std",
+	"substrate-codec/std",
+	"substrate-codec-derive/std",
+	"substrate-primitives/std",
+	"substrate-runtime-support/std",
+	"substrate-runtime-io/std",
+	"substrate-runtime-consensus-rhd/std",
+	"substrate-runtime-primitives/std",
+	"substrate-runtime-version/std",
+]
