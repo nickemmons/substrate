@@ -877,6 +877,7 @@ mod tests {
 			client.json_metadata(&BlockId::Number(1)).unwrap(),
 			r#"{ "events": { "name": "Test", "events": { "event": hallo } } }"#
 		);
+	}
 
 	#[test]
 	fn best_containing_with_genesis_block() {
